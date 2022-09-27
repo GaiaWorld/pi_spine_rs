@@ -1,0 +1,28 @@
+<mxfile host="65bd71144e">
+    <diagram id="pPgRHiJywH52Ib_9k0Sm" name="Page-1">
+        <mxGraphModel dx="1229" dy="1532" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="2" value="PolygonBatcher.setBindMode()" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="160" y="80" width="200" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="Mesh.getVertices().set()" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="200" y="120" width="200" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="Mesh.setVerticesLength()" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="200" y="160" width="200" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="5" value="Mesh.draw()" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="240" y="240" width="200" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="6" value="Texture.bind()" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="240" y="200" width="200" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="7" value="SceneRenderer.enableRenderer()" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="120" y="40" width="200" height="40" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
