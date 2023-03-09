@@ -15,6 +15,7 @@ layout(set = 0, binding = 0) uniform Param {
     mat4 u_projTrans;
     vec4 u_maskflag;
     vec2 u_visibility;
+    vec2 _place_hold;
 };
 
 void main() {

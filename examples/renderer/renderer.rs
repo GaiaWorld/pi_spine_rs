@@ -2,102 +2,29 @@
 use std::{num::NonZeroU32, time::SystemTime, sync::Arc};
 
 use image::{GenericImageView};
-use pi_render::{components::view::target_alloc::{SafeAtlasAllocator, ShareTargetView}, rhi::{device::RenderDevice, asset::{RenderRes, }, }};
-use render_data_container::{TexturePool, GeometryBufferPool};
-use render_data_container::{Matrix, Vector4};
-use pi_spine_rs::{SpineShaderPoolSimple, pipeline::{SpinePipelinePool, SpinePipelinePoolSimple}, mesh_renderer::MeshRendererPool, shaders::EShader};
+use pi_assets::{mgr::AssetMgr, asset::GarbageEmpty};
+use pi_render::{components::view::target_alloc::{SafeAtlasAllocator, ShareTargetView}, rhi::{device::RenderDevice, asset::{RenderRes, }, bind_group::BindGroup, RenderQueue, }, renderer::draw_obj_list::DrawList};
+use pi_scene_math::{Matrix, Vector4};
+use pi_share::Share;
+use pi_spine_render::{renderer::Renderer, vertex_buffer::SpineVertexBufferAllocator, shaders::{SingleSpinePipelinePool, SingleBindGroupLayout, KeySpineShader}, binds::param::BindBufferAllocator};
 use winit::{window::Window, event::WindowEvent};
 
-pub struct DemoTexturePool {
-    pub list: Vec<wgpu::Texture>,
-    pub views: Vec<wgpu::TextureView>,
-}
-
-impl TexturePool<usize> for DemoTexturePool {
-    fn get(& self, key: usize) -> Option<& wgpu::TextureView> {
-        self.views.get(key)
-    }
-}
-
-pub struct DemoGeometryBufferPool {
-    list: Vec<Option<render_data_container::GeometryBuffer>>,
-}
-
-impl GeometryBufferPool<usize> for DemoGeometryBufferPool {
-    fn insert(&mut self, data: render_data_container::GeometryBuffer) -> usize {
-        let result = self.list.len();
-
-        self.list.push(Some(data));
-
-        result
-    }
-
-    fn remove(&mut self, key: &usize) -> Option<render_data_container::GeometryBuffer> {
-        if self.list.len() > *key {
-            self.list.push(None);
-            self.list.swap_remove(*key)
-        } else {
-            None
-        }
-    }
-
-    fn get(&self, key: &usize) -> Option<&render_data_container::GeometryBuffer> {
-        match self.list.get(*key) {
-            Some(geo) => match geo {
-                Some(geo) => Some(geo),
-                None => None,
-            },
-            None => None,
-        }
-        
-    }
-
-    fn get_size(&self, key: &usize) -> usize {
-        match self.list.get(*key) {
-            Some(geo) => match geo {
-                Some(geo) => geo.size(),
-                None => 0,
-            },
-            None => 0,
-        }
-    }
-
-    fn get_mut(&mut self, key: &usize) -> Option<&mut render_data_container::GeometryBuffer> {
-        match self.list.get_mut(*key) {
-            Some(geo) => match geo {
-                Some(geo) => Some(geo),
-                None => None,
-            },
-            None => None,
-        }
-    }
-
-    fn get_buffer(&self, key: &usize) -> Option<&wgpu::Buffer> {
-        match self.list.get(*key) {
-            Some(geo) => match geo {
-                Some(geo) => geo.get_buffer(),
-                None => None,
-            },
-            None => None,
-        }
-    }
-}
 
 pub struct State {
     pub surface: wgpu::Surface,
     pub renderdevice: RenderDevice,
-    pub queue: wgpu::Queue,
+    pub queue: RenderQueue,
     pub config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
     pub value_test: u8,
     pub diffuse_size: wgpu::Extent3d,
     // pub diffuse_buffer: wgpu::Buffer,
     pub lasttime: SystemTime,
-    pub shaders: SpineShaderPoolSimple,
-    pub pipelines: SpinePipelinePoolSimple,
-    pub rendererpool: MeshRendererPool<usize, usize>,
-    pub textures: DemoTexturePool,
-    pub geo_pool: DemoGeometryBufferPool,
+    pub asset_mgr_bindgroup: Share<AssetMgr<RenderRes<BindGroup>>>,
+    pub vb_allocator: SpineVertexBufferAllocator,
+    pub pipelines: SingleSpinePipelinePool,
+    pub bind_group_layouts: SingleBindGroupLayout,
+    bind_buffers: BindBufferAllocator,
 }
 
 impl State {
@@ -130,7 +57,7 @@ impl State {
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_preferred_format(&adapter).unwrap(),
+            format: surface.get_supported_formats(&adapter).get(0).unwrap().clone(),
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
@@ -184,14 +111,16 @@ impl State {
             texture_size,
         );
         let renderdevice = RenderDevice::from(Arc::new(device));
+        let queue = RenderQueue::from(Arc::new(queue));
 
-        let mut shaders = SpineShaderPoolSimple::default();
-        shaders.init(&renderdevice);
+        let mut renderer = Renderer::new();
+        
+        let asset_mgr_bindgroup: Share<AssetMgr<RenderRes<BindGroup>>> = AssetMgr::<RenderRes::<BindGroup>>::new(GarbageEmpty(), false, 1 * 1024 * 1024 , 10 * 1000);
+        let vb_allocator = SpineVertexBufferAllocator::init();
+        let pipelines = SingleSpinePipelinePool::new(&renderdevice);
+        let bind_group_layouts = SingleBindGroupLayout::new(&renderdevice);
+        let bind_buffers = BindBufferAllocator::new();
 
-        let textures = DemoTexturePool {
-            views: vec![diffuse_texture.create_view(&wgpu::TextureViewDescriptor::default())],
-            list: vec![diffuse_texture],
-        };
         Self {
             surface,
             renderdevice,
@@ -201,11 +130,11 @@ impl State {
             value_test: 0,
             diffuse_size: texture_size,
             lasttime: std::time::SystemTime::now(),
-            shaders,
-            pipelines: SpinePipelinePoolSimple::default(),
-            rendererpool: MeshRendererPool::default(),
-            textures,
-            geo_pool: DemoGeometryBufferPool { list: vec![] }
+            asset_mgr_bindgroup,
+            vb_allocator,
+            pipelines,
+            bind_group_layouts,
+            bind_buffers,
         }
     }
 
@@ -277,63 +206,59 @@ impl State {
         let receive_height = self.size.height;
 
         {
-            self.rendererpool.reset();
-            // self.rendererpool.insert(
-            //     &self.renderdevice,
-            //     &self.queue,
-            //     &[
-            //         -0.5, -0.5,  1.0, 0., 0., 1.0,
-            //         -0.5,  0.5,  1.0, 0., 0., 1.0,
-            //          0.5,  0.5,  0.0, 0., 0., 1.0,
-            //          0.5, -0.5,  1.0, 0., 0., 1.0,
-            //     ],
-            //     &[
-            //         0, 1, 2,
-            //         0, 2, 3
-            //     ],
-            //     EShader::Colored,
-            //     Matrix::identity(),
-            //     Vector4::new(0., 0., 0., 0.),
-            //     wgpu::BlendFactor::SrcAlpha,
-            //     wgpu::BlendFactor::OneMinusSrcAlpha,
-            //     ouput_format,
-            //     None,
-            //     None,
-            //     &mut self.shaders,
-            //     &mut self.pipelines,
-            //     &self.textures,
-            //     &mut self.geo_pool,
-            // );
-            self.rendererpool.insert(
+            let mut uniform_param = vec![];
+            Matrix::identity().as_slice().iter().for_each(|v| {
+                uniform_param.push(*v);
+            });
+            Vector4::new(0., 0., 0., 0.).as_slice().iter().for_each(|v| {
+                uniform_param.push(*v);
+            });
+            uniform_param.push(1.);
+            
+            
+            let mut renderer = Renderer::new();
+            renderer.uniform(
+                &uniform_param,
+                &mut self.bind_buffers,
                 &self.renderdevice,
                 &self.queue,
-                &[
-                    -0.5, -0.5,  1.0, 0., 0., 1.0,   0., 0.,
-                    -0.5,  0.5,  1.0, 0., 0., 1.0,   0., 1.,
-                     0.5,  0.5,  0.0, 0., 0., 1.0,   1., 1.,
-                     0.5, -0.5,  1.0, 0., 0., 1.0,   1., 0.,
-                ],
-                &[
-                    0, 1, 2,
-                    0, 2, 3
-                ],
-                EShader::ColoredTextured,
-                Matrix::identity(),
-                Vector4::new(0., 0., 0., 0.),
+            );
+            renderer.blend(true);
+            renderer.blend_mode(
                 wgpu::BlendFactor::SrcAlpha,
                 wgpu::BlendFactor::OneMinusSrcAlpha,
-                ouput_format,
+            );
+            renderer.shader(Some(KeySpineShader::Colored));
+            renderer.draw(
                 None,
-                Some(0),
-                &mut self.shaders,
+                None,
+                &[
+                    -0.5, -0.5,  1.0, 0., 0., 1.0,
+                    -0.5,  0.5,  1.0, 0., 0., 1.0,
+                     0.5,  0.5,  0.0, 0., 0., 1.0,
+                     0.5, -0.5,  1.0, 0., 0., 1.0,
+                ],
+                Some(
+                    &[
+                        0, 1, 2,
+                        0, 2, 3
+                    ]
+                ),
+                24,
+                6,
+                &self.renderdevice,
+                &self.queue,
+                ouput_format,
+                &self.asset_mgr_bindgroup,
+                &mut self.vb_allocator,
                 &mut self.pipelines,
-                &self.textures,
-                &mut self.geo_pool,
+                &mut self.bind_group_layouts
             );
             let mut renderpass = encoder.begin_render_pass(
                 &wgpu::RenderPassDescriptor {
                     label: None,
                     color_attachments: &[
+                        Some(
                             wgpu::RenderPassColorAttachment {
                                 view: &view,
                                 resolve_target: None,
@@ -342,6 +267,7 @@ impl State {
                                     store: true,
                                 }
                             }
+                        )
                     ],
                     depth_stencil_attachment: None,
                 }
@@ -355,15 +281,9 @@ impl State {
                 0.,
                 1.
             );
-            self.rendererpool.update_uniforms(&self.renderdevice, &self.queue,  &self.shaders, &self.textures);
-            self.rendererpool.draw(
-                &self.renderdevice, 
-                &self.queue, 
-                &mut renderpass, 
-                &self.pipelines, 
-                &self.shaders, 
-                &self.textures,
-                &mut self.geo_pool,
+            DrawList::render(
+                &renderer.drawlist().list,
+                &mut renderpass
             );
         }
 
@@ -385,6 +305,7 @@ impl State {
             &wgpu::RenderPassDescriptor {
                 label: None,
                 color_attachments: &[
+                    Some(
                         wgpu::RenderPassColorAttachment {
                             view: view,
                             resolve_target: None,
@@ -400,6 +321,7 @@ impl State {
                                 store: true
                             }
                         }
+                    )
                 ],
                 depth_stencil_attachment: None,
             }

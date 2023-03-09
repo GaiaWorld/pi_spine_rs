@@ -1,9 +1,10 @@
 #version 450
 
-#define SHADER_NAME fragment:ColoredTextured
+#define SHADER_NAME fragment:TwoColoredTextured
 
-layout(location = 0) in vec4 v_color;
-layout(location = 1) in vec2 v_texCoords;
+layout(location = 0) in vec4 v_light;
+layout(location = 1) in vec4 v_dark;
+layout(location = 2) in vec2 v_texCoords;
 
 layout(location = 0) out vec4 gl_FragColor;
 
@@ -11,6 +12,7 @@ layout(set = 0, binding = 0) uniform Param {
     mat4 u_projTrans;
     vec4 u_maskflag;
     vec2 u_visibility;
+    vec2 _place_hold;
 };
 
 layout(set = 1, binding = 0) uniform sampler sampler_u_texture;
@@ -35,7 +37,9 @@ vec3 hsv2rgb(vec3 c)
 }
 
 void main() {
-    gl_FragColor = v_color * texture(sampler2D(u_texture, sampler_u_texture), v_texCoords);
+    vec4 texColor = texture(sampler2D(u_texture, sampler_u_texture), v_texCoords);
+    gl_FragColor.a = texColor.a * v_light.a;
+    gl_FragColor.rgb = ((texColor.a - 1.0) * v_dark.a + 1.0 - texColor.rgb) * v_dark.rgb + texColor.rgb * v_light.rgb;
     
     if (u_maskflag.w == 1.0) {
         gl_FragColor.rgb = u_maskflag.rgb * gl_FragColor.a;
@@ -58,7 +62,7 @@ void main() {
             c.rgb *= 1.0 + hsvValue.b;
         }
         gl_FragColor = c;
-
+        
         gl_FragColor.rgb *= u_visibility.x;
         gl_FragColor.rgb *= mix(1.0, gl_FragColor.a, u_visibility.y);
     }

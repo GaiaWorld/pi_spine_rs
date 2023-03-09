@@ -1,3 +1,0 @@
-pub enum ESpineError {
-    MeshCanntStoreMoreThanMaxVertices,
-}

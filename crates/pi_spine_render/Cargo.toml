@@ -1,0 +1,56 @@
+[package]
+name = "pi_spine_render"
+version = "0.0.1"
+authors = ["baip0002 <2494156981@qq.com>"]
+edition = "2021"
+description = "Pi Spine Render."
+repository = "https://github.com/GaiaWorld/pi_spine_rs"
+license = "MIT OR Apache-2.0"
+keywords = ["scene Render"]
+
+[dependencies]
+wgpu = "0.13"
+env_logger = "0.9"
+log = "0.4"
+smallvec = "1.9"
+crossbeam="0.8"
+futures = "0.3"
+
+parry3d = "0.9"
+lazy_static = "1.4"
+pi_spatialtree = { git = "https://github.com/GaiaWorld/pi_spatialtree.git" }
+ncollide3d = "0.33"
+
+approx = "0.5"
+naga = { version = "0.9", features = [
+    "glsl-in",
+    "spv-in",
+    "spv-out",
+    "wgsl-in",
+    "wgsl-out",
+] }
+bytemuck = { version = "1.4", features = ["derive"] }
+
+pi_slotmap = "0.1"
+pi_map = "0.1"
+pi_hash = "0.1"
+pi_share = "0.4"
+pi_graph = "0.1"
+pi_atom = { version="0.2", features = ["serde"] }
+pi_assets = "0.10"
+pi_futures = "0.1"
+pi_async = "0.5"
+pi_idtree = "0.1"
+pi_slotmap_tree = "0.3"
+pi_ecs_macros = { git = "https://github.com/GaiaWorld/pi_ecs.git" }
+pi_ecs_utils = { git = "https://github.com/GaiaWorld/pi_ecs_utils.git" }
+pi_ecs = { git = "https://github.com/GaiaWorld/pi_ecs.git" }
+pi_hal = { git = "https://github.com/GaiaWorld/pi_hal.git" }
+
+pi_render = { git = "https://github.com/GaiaWorld/pi_render" }
+render_utils = { git = "https://github.com/GaiaWorld/pi_render" }
+render_derive = { git = "https://github.com/GaiaWorld/pi_render" }
+
+pi_scene_math = { git = "https://github.com/GaiaWorld/pi_scene" }
+
+# [[example]]
