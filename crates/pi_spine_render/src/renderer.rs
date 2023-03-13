@@ -2,21 +2,21 @@ use std::{ops::Range, sync::Arc};
 
 use pi_assets::{asset::Handle, mgr::AssetMgr};
 use pi_map::vecmap::VecMap;
-use pi_render::{renderer::{draw_obj::{DrawObj, DrawBindGroups, DrawBindGroup}, sampler::SamplerRes, pipeline::KeyRenderPipelineState, vertices::{RenderVertices, EVerticesBufferUsage, RenderIndices}, draw_obj_list::DrawList}, rhi::{asset::{TextureRes, RenderRes}, device::RenderDevice, RenderQueue, bind_group::BindGroup}};
+use pi_render::{renderer::{draw_obj::{DrawObj, DrawBindGroups, DrawBindGroup}, sampler::SamplerRes, pipeline::KeyRenderPipelineState, vertices::{RenderVertices, EVerticesBufferUsage, RenderIndices}, draw_obj_list::DrawList, vertex_buffer::VertexBufferAllocator}, rhi::{asset::{TextureRes, RenderRes}, device::RenderDevice, RenderQueue, bind_group::BindGroup}};
 use pi_share::Share;
 
-use crate::{shaders::{KeySpineShader, KeySpinePipeline, SingleSpinePipelinePool, SingleBindGroupLayout}, vertex_buffer::SpineVertexBufferAllocator, EPrimitive, binds::param::{SpineBindBuffer, BindBufferAllocator}, bind_groups::SpineBindGroup};
+use crate::{shaders::{KeySpineShader, KeySpinePipeline, SingleSpinePipelinePool, SingleBindGroupLayout}, vertex_buffer::SpineVertexBufferAllocator, EPrimitive, binds::param::{SpineBindBuffer, BindBufferAllocator, SpineBindBufferUsage}, bind_groups::SpineBindGroup};
 
 
 
 
 pub struct Renderer {
-    pub(crate) binds: Vec<Handle<SpineBindBuffer>>,
+    pub(crate) binds: Vec<SpineBindBufferUsage>,
     pub(crate) bind_groups: Vec<SpineBindGroup>,
     pub(crate) draws: DrawList,
     pub(crate) shader: Option<KeySpineShader>,
     pub(crate) blend: wgpu::BlendState,
-    pub(crate) bind: Option<Handle<SpineBindBuffer>>,
+    pub(crate) bind: Option<SpineBindBufferUsage>,
     pub(crate) enableblend: bool,
 }
 impl Renderer {
@@ -65,8 +65,10 @@ impl Renderer {
         queue: &RenderQueue,
     ) {
         let bind = allocator.allocate(device, queue, bytemuck::cast_slice(uniform_param));
-        self.binds.push(bind.clone());
-        self.bind = Some(bind);
+        if let Some(bind) = &bind {
+            self.binds.push(bind.clone());
+        }
+        self.bind = bind;
     }
     pub fn blend(&mut self, flag: bool) {
         self.enableblend = flag;
@@ -98,7 +100,7 @@ impl Renderer {
         queue: &RenderQueue,
         target_format: wgpu::TextureFormat,
         asset_mgr_bindgroup: &Share<AssetMgr<RenderRes<BindGroup>>>,
-        vb_allocator: &mut SpineVertexBufferAllocator,
+        vb_allocator: &mut VertexBufferAllocator,
         pipelines: &mut SingleSpinePipelinePool,
         bind_group_layouts: &SingleBindGroupLayout,
     ) {
@@ -114,41 +116,41 @@ impl Renderer {
         };
         let (vb, bindgroup) = match shader {
             KeySpineShader::Colored => {
-                let vb = if let Some(vb) = vb_allocator.colored(vertices, device, queue) {
+                let vb = if let Some(vb) = vb_allocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(vertices)) {
                     let mut result = VecMap::default();
-                    result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::Other(vb), buffer_range: Some(Range { start: 0, end: (vertices_len * 4) as u64  }), size_per_value: shader.vertices_bytes_per_element() as u64 });
+                    result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(vb), buffer_range: Some(Range { start: 0, end: (vertices_len * 4) as u64  }), size_per_value: shader.vertices_bytes_per_element() as u64 });
                     result
                 } else {
                     return;
                 };
-                let bindgroup = SpineBindGroup::colored(bind.clone(), device, asset_mgr_bindgroup, bind_group_layouts);
+                let bindgroup = SpineBindGroup::colored(bind.0.clone(), device, asset_mgr_bindgroup, bind_group_layouts);
                 (vb, bindgroup)
             },
             KeySpineShader::ColoredTextured => {
-                let vb = if let Some(vb) = vb_allocator.colored_textured(vertices, device, queue) {
+                let vb = if let Some(vb) = vb_allocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(vertices)) {
                     let mut result = VecMap::default();
-                    result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::Other(vb), buffer_range: Some(Range { start: 0, end: (vertices_len * 4) as u64  }), size_per_value: shader.vertices_bytes_per_element() as u64 });
+                    result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(vb), buffer_range: Some(Range { start: 0, end: (vertices_len * 4) as u64  }), size_per_value: shader.vertices_bytes_per_element() as u64 });
                     result
                 } else {
                     return;
                 };
                 let bindgroup = if let (Some(texture), Some(sampler)) = (texture, sampler) {
-                    SpineBindGroup::colored_textured(bind.clone(), device, texture, sampler, asset_mgr_bindgroup, bind_group_layouts)
+                    SpineBindGroup::colored_textured(bind.0.clone(), device, texture, sampler, asset_mgr_bindgroup, bind_group_layouts)
                 } else {
                     return;
                 };
                 (vb, bindgroup)
             },
             KeySpineShader::TwoColoredTextured => {
-                let vb = if let Some(vb) = vb_allocator.two_colored_textured(vertices, device, queue) {
+                let vb = if let Some(vb) = vb_allocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(vertices)) {
                     let mut result = VecMap::default();
-                    result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::Other(vb), buffer_range: Some(Range { start: 0, end: (vertices_len * 4) as u64  }), size_per_value: shader.vertices_bytes_per_element() as u64 });
+                    result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(vb), buffer_range: Some(Range { start: 0, end: (vertices_len * 4) as u64  }), size_per_value: shader.vertices_bytes_per_element() as u64 });
                     result
                 } else {
                     return;
                 };
                 let bindgroup = if let (Some(texture), Some(sampler)) = (texture, sampler) {
-                    SpineBindGroup::colored_textured(bind.clone(), device, texture, sampler, asset_mgr_bindgroup, bind_group_layouts)
+                    SpineBindGroup::two_colored_textured(bind.0.clone(), device, texture, sampler, asset_mgr_bindgroup, bind_group_layouts)
                 } else {
                     return;
                 };
@@ -157,8 +159,8 @@ impl Renderer {
         };
         
         let ib = if let Some(indices) = indices {
-            if let Some(ib) = vb_allocator.indices(indices, device, queue) {
-                let temp = RenderIndices { buffer: EVerticesBufferUsage::Other(ib), buffer_range: Some(Range { start: 0, end: (indices_len * 2) as u64  }), format: wgpu::IndexFormat::Uint16 };
+            if let Some(ib) = vb_allocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(indices)) {
+                let temp = RenderIndices { buffer: EVerticesBufferUsage::EVBRange(ib), buffer_range: Some(Range { start: 0, end: (indices_len * 2) as u64  }), format: wgpu::IndexFormat::Uint16 };
                 Some(temp)
             } else {
                 return;
@@ -180,6 +182,9 @@ impl Renderer {
                     topology: wgpu::PrimitiveTopology::TriangleStrip,
                     strip_index_format: Some(wgpu::IndexFormat::Uint16),
                     polygon_mode: wgpu::PolygonMode::Fill,
+                    front_face: wgpu::FrontFace::Ccw,
+                    unclipped_depth: true,
+                    cull_mode: None,
                     ..Default::default()
                 },
                 multisample: wgpu::MultisampleState { count: 1, mask: !0, alpha_to_coverage_enabled: false },

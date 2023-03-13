@@ -3,11 +3,14 @@ use std::{num::NonZeroU32, time::SystemTime, sync::Arc};
 
 use image::{GenericImageView};
 use pi_assets::{mgr::AssetMgr, asset::GarbageEmpty};
-use pi_render::{components::view::target_alloc::{SafeAtlasAllocator, ShareTargetView}, rhi::{device::RenderDevice, asset::{RenderRes, }, bind_group::BindGroup, RenderQueue, }, renderer::draw_obj_list::DrawList};
+use pi_atom::Atom;
+use pi_render::{components::view::target_alloc::{SafeAtlasAllocator, ShareTargetView}, rhi::{device::RenderDevice, asset::{RenderRes, TextureRes, }, bind_group::BindGroup, RenderQueue, sampler::{Sampler, SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}, }, renderer::{draw_obj_list::DrawList, vertex_buffer::VertexBufferAllocator}};
 use pi_scene_math::{Matrix, Vector4};
 use pi_share::Share;
 use pi_spine_render::{renderer::Renderer, vertex_buffer::SpineVertexBufferAllocator, shaders::{SingleSpinePipelinePool, SingleBindGroupLayout, KeySpineShader}, binds::param::BindBufferAllocator};
 use winit::{window::Window, event::WindowEvent};
+
+use super::{indices::INDICES, vertices::VERTICES};
 
 
 pub struct State {
@@ -21,10 +24,13 @@ pub struct State {
     // pub diffuse_buffer: wgpu::Buffer,
     pub lasttime: SystemTime,
     pub asset_mgr_bindgroup: Share<AssetMgr<RenderRes<BindGroup>>>,
-    pub vb_allocator: SpineVertexBufferAllocator,
+    pub asset_mgr_texture: Share<AssetMgr<TextureRes>>,
+    pub asset_mgr_sampler: Share<AssetMgr<Sampler>>,
+    pub vb_allocator: VertexBufferAllocator,
     pub pipelines: SingleSpinePipelinePool,
     pub bind_group_layouts: SingleBindGroupLayout,
     bind_buffers: BindBufferAllocator,
+    renderer: Renderer,
 }
 
 impl State {
@@ -44,7 +50,7 @@ impl State {
         let (device, queue) = adapter.request_device(
             &wgpu::DeviceDescriptor {
                 label: None,
-                features: wgpu::Features::empty(),
+                features: wgpu::Features::DEPTH_CLIP_CONTROL,
                 limits: if cfg!(target_arch = "wasm32") {
                     wgpu::Limits::downlevel_webgl2_defaults()
                 } else {
@@ -67,7 +73,7 @@ impl State {
         ///// 
 
         //// Texture
-        let diffuse_bytes = include_bytes!("../dialog_bg.png");
+        let diffuse_bytes = include_bytes!("../wanzhuqian.png");
         let diffuse_image = image::load_from_memory(diffuse_bytes).unwrap();
         let diffuse_rgba = diffuse_image.as_bytes();
         let dimensions = diffuse_image.dimensions();
@@ -110,16 +116,36 @@ impl State {
             },
             texture_size,
         );
+        let texture_view = diffuse_texture.create_view(&wgpu::TextureViewDescriptor::default());
+
         let renderdevice = RenderDevice::from(Arc::new(device));
         let queue = RenderQueue::from(Arc::new(queue));
-
-        let mut renderer = Renderer::new();
         
-        let asset_mgr_bindgroup: Share<AssetMgr<RenderRes<BindGroup>>> = AssetMgr::<RenderRes::<BindGroup>>::new(GarbageEmpty(), false, 1 * 1024 * 1024 , 10 * 1000);
-        let vb_allocator = SpineVertexBufferAllocator::init();
+        let asset_mgr_bindgroup: Share<AssetMgr<RenderRes<BindGroup>>> = AssetMgr::<RenderRes::<BindGroup>>::new(GarbageEmpty(), false, 1 * 1024 * 1024 , 100 * 1000);
+        let asset_mgr_texture: Share<AssetMgr<TextureRes>> = AssetMgr::<TextureRes>::new(GarbageEmpty(), false, 10 * 1024 * 1024 , 100 * 1000);
+        let asset_mgr_sampler: Share<AssetMgr<Sampler>> = AssetMgr::<Sampler>::new(GarbageEmpty(), false, 10 * 1024 * 1024 , 100 * 1000);
+        let vb_allocator = VertexBufferAllocator::new();
         let pipelines = SingleSpinePipelinePool::new(&renderdevice);
         let bind_group_layouts = SingleBindGroupLayout::new(&renderdevice);
         let bind_buffers = BindBufferAllocator::new();
+
+        asset_mgr_texture.insert(Atom::from("wanzhuqian.png").get_hash() as u64, TextureRes::new(texture_size.width, texture_size.height, (texture_size.width * texture_size.height * 4) as usize, texture_view, true));
+        let desc = SamplerDesc {
+            address_mode_u: EAddressMode::ClampToEdge,
+            address_mode_v: EAddressMode::ClampToEdge,
+            address_mode_w: EAddressMode::ClampToEdge,
+            mag_filter: EFilterMode::Linear,
+            min_filter: EFilterMode::Linear,
+            mipmap_filter: EFilterMode::Nearest,
+            compare: None,
+            anisotropy_clamp: EAnisotropyClamp::None,
+            border_color: None,
+        };
+        let sampler = Sampler::new(&renderdevice, &desc);
+
+        asset_mgr_sampler.insert(desc, sampler);
+        
+        let mut renderer = Renderer::new();
 
         Self {
             surface,
@@ -131,10 +157,13 @@ impl State {
             diffuse_size: texture_size,
             lasttime: std::time::SystemTime::now(),
             asset_mgr_bindgroup,
+            asset_mgr_texture,
+            asset_mgr_sampler,
             vb_allocator,
             pipelines,
             bind_group_layouts,
             bind_buffers,
+            renderer,
         }
     }
 
@@ -205,18 +234,30 @@ impl State {
         let receive_width = self.size.width;
         let receive_height = self.size.height;
 
+        let renderer = &mut self.renderer;
+        renderer.reset();
         {
             let mut uniform_param = vec![];
-            Matrix::identity().as_slice().iter().for_each(|v| {
+            let matrix = Matrix::new(
+                0.0016322123119607568 as f32,0.,0.,0.,
+                0.,0.002176283160224557 as f32,0.,0.,
+                0.,0.,-0.019999999552965164 as f32,0.,
+                -0.05721032992005348 as f32,-0.950402557849884 as f32,-1.,1.
+            );
+            [
+                0.0016322123119607568 as f32,0.,0.,0.,
+                0.,0.002176283160224557 as f32,0.,0.,
+                0.,0.,-0.019999999552965164 as f32,0.,
+                -0.05721032992005348 as f32,-0.950402557849884 as f32,-1.,1.
+            ].as_slice().iter().for_each(|v| {
                 uniform_param.push(*v);
             });
-            Vector4::new(0., 0., 0., 0.).as_slice().iter().for_each(|v| {
+            Vector4::new(0.5000, 0.5000, 0.5000, 0.).as_slice().iter().for_each(|v| {
                 uniform_param.push(*v);
             });
             uniform_param.push(1.);
             
             
-            let mut renderer = Renderer::new();
             renderer.uniform(
                 &uniform_param,
                 &mut self.bind_buffers,
@@ -228,24 +269,61 @@ impl State {
                 wgpu::BlendFactor::SrcAlpha,
                 wgpu::BlendFactor::OneMinusSrcAlpha,
             );
-            renderer.shader(Some(KeySpineShader::Colored));
+
+            println!("{:?}", Matrix::identity());
+            println!("{:?}", matrix);
+
+            // renderer.shader(Some(KeySpineShader::Colored));
+            // renderer.draw(
+            //     None,
+            //     None,&[
+            //         -0.5 * 800., -0.5 * 800.,  1.0, 0., 0., 1.0,
+            //         -0.5 * 800.,  0.5 * 800.,  1.0, 0., 0., 1.0,
+            //          0.5 * 800.,  0.5 * 800.,  0.0, 0., 0., 1.0,
+            //          0.5 * 800., -0.5 * 800.,  1.0, 0., 0., 1.0,
+            //     ],
+            //     Some(
+            //         &[
+            //             0, 1, 2,
+            //             0, 2, 3
+            //         ]
+            //     ),
+            //     24,
+            //     6,
+            //     &self.renderdevice,
+            //     &self.queue,
+            //     ouput_format,
+            //     &self.asset_mgr_bindgroup,
+            //     &mut self.vb_allocator,
+            //     &mut self.pipelines,
+            //     &mut self.bind_group_layouts
+            // );
+
+            let texture = self.asset_mgr_texture.get(&(Atom::from("wanzhuqian.png").get_hash() as u64));
+            let sampler = self.asset_mgr_sampler.get(&SamplerDesc {
+                address_mode_u: EAddressMode::ClampToEdge,
+                address_mode_v: EAddressMode::ClampToEdge,
+                address_mode_w: EAddressMode::ClampToEdge,
+                mag_filter: EFilterMode::Linear,
+                min_filter: EFilterMode::Linear,
+                mipmap_filter: EFilterMode::Nearest,
+                compare: None,
+                anisotropy_clamp: EAnisotropyClamp::None,
+                border_color: None,
+            });
+            renderer.blend(true);
+            renderer.blend_mode(wgpu::BlendFactor::One, wgpu::BlendFactor::OneMinusSrcAlpha);
+            // println!("{:?}, {:?}", texture.is_some(), sampler.is_some());
+            renderer.shader(Some(KeySpineShader::TwoColoredTextured));
             renderer.draw(
-                None,
-                None,
-                &[
-                    -0.5, -0.5,  1.0, 0., 0., 1.0,
-                    -0.5,  0.5,  1.0, 0., 0., 1.0,
-                     0.5,  0.5,  0.0, 0., 0., 1.0,
-                     0.5, -0.5,  1.0, 0., 0., 1.0,
-                ],
+                texture,
+                sampler,
+                &VERTICES.as_slice()[0..9636],
                 Some(
-                    &[
-                        0, 1, 2,
-                        0, 2, 3
-                    ]
+                    &INDICES.as_slice()[0..2352]
                 ),
-                24,
-                6,
+                9636,
+                2352,
                 &self.renderdevice,
                 &self.queue,
                 ouput_format,
@@ -274,10 +352,10 @@ impl State {
             );
             
             renderpass.set_viewport(
-                100 as f32,
-                100 as f32,
-                200 as f32,
-                200 as f32,
+                0 as f32,
+                0 as f32,
+                800 as f32,
+                600 as f32,
                 0.,
                 1.
             );

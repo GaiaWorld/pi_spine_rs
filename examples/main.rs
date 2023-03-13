@@ -16,7 +16,6 @@ pub fn window_setup() -> (EventLoop<()>, Window) {
 }
 
 pub async fn run() {
-    env_logger::init();
 
     let (event_loop, window) = window_setup();
 
@@ -43,10 +42,10 @@ pub async fn run() {
                                 *control_flow = ControlFlow::Exit;
                             },
                             WindowEvent::Resized(physical_size) => {
-                                state.resize(physical_size);
+                                // state.resize(physical_size);
                             },
                             WindowEvent::ScaleFactorChanged { scale_factor, new_inner_size } => {
-                                state.resize(*new_inner_size);
+                                // state.resize(*new_inner_size);
                             }
                             _ => {}
                         }
@@ -67,7 +66,7 @@ pub async fn run() {
                 match state.render() {
                     Ok(_) => {},
                     Err(wgpu::SurfaceError::Lost) => {
-                        state.resize(state.size);
+                        // state.resize(state.size);
                     },
                     Err(wgpu::SurfaceError::OutOfMemory) => {
                         *control_flow = ControlFlow::Exit;
@@ -85,5 +84,7 @@ pub async fn run() {
 }
 
 pub fn main() {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
     pollster::block_on(run());
 }

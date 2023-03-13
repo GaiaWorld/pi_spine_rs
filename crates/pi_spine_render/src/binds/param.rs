@@ -13,13 +13,13 @@ pub struct BindBufferAllocator {
 impl BindBufferAllocator {
     pub fn new() -> Self {
         Self {
-            asset_mgr: AssetMgr::<SpineBindBuffer>::new(GarbageEmpty(), false, 10 * 1024, 60 * 1000),
+            asset_mgr: AssetMgr::<SpineBindBuffer>::new(GarbageEmpty(), false, 16 * 1024, 10 * 1000),
             couter: 0,
             list: Arc::new(vec![]),
             mutex: ShareMutex::new(())
         }
     }
-    pub fn allocate(&mut self, device: &RenderDevice, queue: &RenderQueue, data: &[u8]) -> Handle<SpineBindBuffer> {
+    pub fn allocate(&mut self, device: &RenderDevice, queue: &RenderQueue, data: &[u8]) -> Option<SpineBindBufferUsage> {
         let list = unsafe {
             &mut *(Arc::as_ptr(&self.list) as usize as *mut Vec<usize>)
         };
@@ -32,7 +32,7 @@ impl BindBufferAllocator {
 
         if let Some(buffer) = self.asset_mgr.get(&idx) {
             queue.write_buffer(&buffer.buffer, 0, data);
-            buffer
+            Some(SpineBindBufferUsage(buffer))
         } else {
             let buffer = device.create_buffer_with_data(
                 &BufferInitDescriptor {
@@ -47,7 +47,11 @@ impl BindBufferAllocator {
                 list: self.list.clone(),
             };
             queue.write_buffer(&buffer.buffer, 0, data);
-            self.asset_mgr.insert(idx, buffer).unwrap()
+            if let Some(buffer) = self.asset_mgr.insert(idx, buffer) {
+                Some(SpineBindBufferUsage(buffer))
+            } else {
+                None
+            }
         }
     }
 }
@@ -67,18 +71,21 @@ impl Debug for SpineBindBuffer {
         f.debug_struct("SpineBindBuffer").field("idx", &self.idx).finish()
     }
 }
-impl Drop for SpineBindBuffer {
-    fn drop(&mut self) {
-        let list = unsafe {
-            &mut *(Arc::as_ptr(&self.list) as usize as *mut Vec<usize>)
-        };
-        list.push(self.idx)
-    }
-}
 impl Asset for SpineBindBuffer {
     type Key = usize;
     fn size(&self) -> usize {
         BindParam::SIZE
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SpineBindBufferUsage(pub Handle<SpineBindBuffer>);
+impl Drop for SpineBindBufferUsage {
+    fn drop(&mut self) {
+        let list = unsafe {
+            &mut *(Arc::as_ptr(&self.0.list) as usize as *mut Vec<usize>)
+        };
+        list.push(self.0.idx)
     }
 }
 

@@ -139,9 +139,9 @@ impl SpineBindGroup {
     }
     pub fn two_colored_textured(
         param: Handle<SpineBindBuffer>,
+        device: &RenderDevice,
         texture: Handle<TextureRes>,
         sampler: Handle<SamplerRes>,
-        device: &RenderDevice,
         asset_mgr: &Share<AssetMgr<RenderRes<BindGroup>>>,
         bind_group_layouts: &SingleBindGroupLayout,
     ) -> Self {
