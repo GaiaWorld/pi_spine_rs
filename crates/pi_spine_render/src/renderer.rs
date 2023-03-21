@@ -5,7 +5,7 @@ use pi_map::vecmap::VecMap;
 use pi_render::{renderer::{draw_obj::{DrawObj, DrawBindGroups, DrawBindGroup}, sampler::SamplerRes, pipeline::KeyRenderPipelineState, vertices::{RenderVertices, EVerticesBufferUsage, RenderIndices}, draw_obj_list::DrawList, vertex_buffer::VertexBufferAllocator}, rhi::{asset::{TextureRes, RenderRes}, device::RenderDevice, RenderQueue, bind_group::BindGroup, PrimitiveState}};
 use pi_share::Share;
 
-use crate::{shaders::{KeySpineShader, KeySpinePipeline, SingleSpinePipelinePool, SingleBindGroupLayout}, vertex_buffer::SpineVertexBufferAllocator, EPrimitive, binds::param::{SpineBindBuffer, BindBufferAllocator, SpineBindBufferUsage}, bind_groups::SpineBindGroup};
+use crate::{shaders::{KeySpineShader, KeySpinePipeline, SingleSpinePipelinePool, SingleSpineBindGroupLayout}, vertex_buffer::SpineVertexBufferAllocator, EPrimitive, binds::param::{SpineBindBuffer, BindBufferAllocator, SpineBindBufferUsage}, bind_groups::SpineBindGroup};
 
 
 
@@ -102,7 +102,7 @@ impl Renderer {
         asset_mgr_bindgroup: &Share<AssetMgr<RenderRes<BindGroup>>>,
         vb_allocator: &mut VertexBufferAllocator,
         pipelines: &mut SingleSpinePipelinePool,
-        bind_group_layouts: &SingleBindGroupLayout,
+        bind_group_layouts: &SingleSpineBindGroupLayout,
     ) {
         let shader = if let Some(shader) = &self.shader {
             shader

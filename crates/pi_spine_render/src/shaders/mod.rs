@@ -201,12 +201,12 @@ impl SingleSpineShaderPool {
     }
 }
 
-pub struct SingleBindGroupLayout {
+pub struct SingleSpineBindGroupLayout {
     pub colored: BindGroupLayout,
     pub colored_textured: BindGroupLayout,
     pub two_colored_textured: BindGroupLayout,
 }
-impl SingleBindGroupLayout {
+impl SingleSpineBindGroupLayout {
     pub fn new(device: &RenderDevice) -> Self {
         Self {
             colored: KeySpineShader::Colored.bind_group_layout(device),
@@ -238,14 +238,14 @@ impl KeySpinePipeline {
 
 pub struct SingleSpinePipelinePool {
     shaders: SingleSpineShaderPool,
-    bind_group_layouts: SingleBindGroupLayout,
+    bind_group_layouts: SingleSpineBindGroupLayout,
     asset_mgr: Share<AssetMgr<RenderRes<RenderPipeline>>>
 }
 impl SingleSpinePipelinePool {
     pub fn new(device: &RenderDevice) -> Self {
         Self {
             shaders: SingleSpineShaderPool::new(device),
-            bind_group_layouts: SingleBindGroupLayout::new(device),
+            bind_group_layouts: SingleSpineBindGroupLayout::new(device),
             asset_mgr: AssetMgr::<RenderRes::<RenderPipeline>>::new(GarbageEmpty(), false, 1 * 1024, 60 * 1000),
         }
     }

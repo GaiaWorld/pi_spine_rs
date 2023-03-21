@@ -1,3 +1,6 @@
+use pi_hash::XHashMap;
+use renderer::Renderer;
+
 
 pub mod binds;
 pub mod bind_groups;

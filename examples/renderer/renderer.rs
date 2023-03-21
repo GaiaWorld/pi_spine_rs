@@ -7,7 +7,7 @@ use pi_atom::Atom;
 use pi_render::{components::view::target_alloc::{SafeAtlasAllocator, ShareTargetView}, rhi::{device::RenderDevice, asset::{RenderRes, TextureRes, }, bind_group::BindGroup, RenderQueue, sampler::{Sampler, SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}, }, renderer::{draw_obj_list::DrawList, vertex_buffer::VertexBufferAllocator}};
 use pi_scene_math::{Matrix, Vector4};
 use pi_share::Share;
-use pi_spine_render::{renderer::Renderer, vertex_buffer::SpineVertexBufferAllocator, shaders::{SingleSpinePipelinePool, SingleBindGroupLayout, KeySpineShader}, binds::param::BindBufferAllocator};
+use pi_spine_render::{renderer::Renderer, vertex_buffer::SpineVertexBufferAllocator, shaders::{SingleSpinePipelinePool, SingleSpineBindGroupLayout, KeySpineShader}, binds::param::BindBufferAllocator};
 use winit::{window::Window, event::WindowEvent};
 
 use super::{indices::INDICES, vertices::VERTICES};
@@ -55,7 +55,7 @@ pub struct State {
     pub asset_mgr_sampler: Share<AssetMgr<Sampler>>,
     pub vb_allocator: VertexBufferAllocator,
     pub pipelines: SingleSpinePipelinePool,
-    pub bind_group_layouts: SingleBindGroupLayout,
+    pub bind_group_layouts: SingleSpineBindGroupLayout,
     bind_buffers: BindBufferAllocator,
     renderer: Renderer,
 }
@@ -164,7 +164,7 @@ impl State {
 
         let vb_allocator = VertexBufferAllocator::new();
         let pipelines = SingleSpinePipelinePool::new(&renderdevice);
-        let bind_group_layouts = SingleBindGroupLayout::new(&renderdevice);
+        let bind_group_layouts = SingleSpineBindGroupLayout::new(&renderdevice);
         let bind_buffers = BindBufferAllocator::new();
 
 

@@ -7,7 +7,7 @@ use pi_render::{rhi::{bind_group::BindGroup, asset::{RenderRes, TextureRes}, sam
 use pi_scene_math::{Number, Matrix};
 use pi_share::Share;
 
-use crate::{shaders::{KeySpineShader, SingleBindGroupLayout}, binds::param::{SpineBindBuffer, BindBufferAllocator, BindParam}};
+use crate::{shaders::{KeySpineShader, SingleSpineBindGroupLayout}, binds::param::{SpineBindBuffer, BindBufferAllocator, BindParam}};
 
 
 pub struct UsedBindGroupSet0 {
@@ -61,7 +61,7 @@ impl SpineBindGroup {
         param: Handle<SpineBindBuffer>,
         device: &RenderDevice,
         asset_mgr: &Share<AssetMgr<RenderRes<BindGroup>>>,
-        bind_group_layouts: &SingleBindGroupLayout,
+        bind_group_layouts: &SingleSpineBindGroupLayout,
     ) -> Self {
         let key_layout = KeySpineShader::Colored;
 
@@ -99,7 +99,7 @@ impl SpineBindGroup {
         texture: Handle<TextureRes>,
         sampler: Handle<SamplerRes>,
         asset_mgr: &Share<AssetMgr<RenderRes<BindGroup>>>,
-        bind_group_layouts: &SingleBindGroupLayout,
+        bind_group_layouts: &SingleSpineBindGroupLayout,
     ) -> Self {
         let key = KeySpineBindGroup {
             url: Some(texture.key().clone()),
@@ -143,7 +143,7 @@ impl SpineBindGroup {
         texture: Handle<TextureRes>,
         sampler: Handle<SamplerRes>,
         asset_mgr: &Share<AssetMgr<RenderRes<BindGroup>>>,
-        bind_group_layouts: &SingleBindGroupLayout,
+        bind_group_layouts: &SingleSpineBindGroupLayout,
     ) -> Self {
         Self::colored_textured(param, device, texture, sampler, asset_mgr, bind_group_layouts)
     }
