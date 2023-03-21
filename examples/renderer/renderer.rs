@@ -12,8 +12,35 @@ use winit::{window::Window, event::WindowEvent};
 
 use super::{indices::INDICES, vertices::VERTICES};
 
+fn test_texture(device: &wgpu::Device, asset_mgr_texture: &Share<AssetMgr<TextureRes>>) -> wgpu::Texture {
+    let texture_size = wgpu::Extent3d {
+        width: 2048, // dimensions.0,
+        height: 2048, //dimensions.1,
+        depth_or_array_layers: 1,
+    };
+    let diffuse_texture = device.create_texture(
+        &wgpu::TextureDescriptor {
+            // All textures are stored as 3D, we represent our 2D texture
+            // by setting depth to 1.
+            size: texture_size,
+            mip_level_count: 1, // We'll talk about this a little later
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            // Most images are stored using sRGB so we need to reflect that here.
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            // TEXTURE_BINDING tells wgpu that we want to use this texture in shaders
+            // COPY_DST means that we want to copy data to this texture
+            usage: wgpu::TextureUsages::COPY_DST,
+            label: None,
+        }
+    );
+    // let texture_view = diffuse_texture.create_view(&wgpu::TextureViewDescriptor::default());
+    // texture_view
+    diffuse_texture
+}
 
 pub struct State {
+    // texture_view: wgpu::Texture,
     pub surface: wgpu::Surface,
     pub renderdevice: RenderDevice,
     pub queue: RenderQueue,
@@ -67,6 +94,7 @@ impl State {
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
         };
         surface.configure(&device, &config);
 
@@ -117,19 +145,29 @@ impl State {
             texture_size,
         );
         let texture_view = diffuse_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        
+        let asset_mgr_bindgroup: Share<AssetMgr<RenderRes<BindGroup>>> = AssetMgr::<RenderRes::<BindGroup>>::new(GarbageEmpty(), false, 1 * 1024 * 1024 , 100 * 1000);
+        let asset_mgr_texture: Share<AssetMgr<TextureRes>> = AssetMgr::<TextureRes>::new(GarbageEmpty(), false,  1024 * 1024 , 100 * 1000);
+        let asset_mgr_sampler: Share<AssetMgr<Sampler>> = AssetMgr::<Sampler>::new(GarbageEmpty(), false, 10 * 1024 * 1024 , 100 * 1000);
+
+        asset_mgr_texture.insert(Atom::from("wanzhuqian.png").get_hash() as u64, TextureRes::new(texture_size.width, texture_size.height, (texture_size.width * texture_size.height * 4) as usize, texture_view, true));
+
+        // let texture_view = test_texture(&device, &asset_mgr_texture);
+        // for i in 0..1 {
+        //     let texture_view = test_texture(&device, &asset_mgr_texture);
+            
+        //     asset_mgr_texture.insert(i as u64, TextureRes::new(texture_size.width, texture_size.height, (texture_size.width * texture_size.height * 4) as usize, texture_view, true));
+        // }
 
         let renderdevice = RenderDevice::from(Arc::new(device));
         let queue = RenderQueue::from(Arc::new(queue));
-        
-        let asset_mgr_bindgroup: Share<AssetMgr<RenderRes<BindGroup>>> = AssetMgr::<RenderRes::<BindGroup>>::new(GarbageEmpty(), false, 1 * 1024 * 1024 , 100 * 1000);
-        let asset_mgr_texture: Share<AssetMgr<TextureRes>> = AssetMgr::<TextureRes>::new(GarbageEmpty(), false, 10 * 1024 * 1024 , 100 * 1000);
-        let asset_mgr_sampler: Share<AssetMgr<Sampler>> = AssetMgr::<Sampler>::new(GarbageEmpty(), false, 10 * 1024 * 1024 , 100 * 1000);
+
         let vb_allocator = VertexBufferAllocator::new();
         let pipelines = SingleSpinePipelinePool::new(&renderdevice);
         let bind_group_layouts = SingleBindGroupLayout::new(&renderdevice);
         let bind_buffers = BindBufferAllocator::new();
 
-        asset_mgr_texture.insert(Atom::from("wanzhuqian.png").get_hash() as u64, TextureRes::new(texture_size.width, texture_size.height, (texture_size.width * texture_size.height * 4) as usize, texture_view, true));
+
         let desc = SamplerDesc {
             address_mode_u: EAddressMode::ClampToEdge,
             address_mode_v: EAddressMode::ClampToEdge,
@@ -148,6 +186,7 @@ impl State {
         let mut renderer = Renderer::new();
 
         Self {
+            // texture_view,
             surface,
             renderdevice,
             queue,
@@ -234,6 +273,7 @@ impl State {
         let receive_width = self.size.width;
         let receive_height = self.size.height;
 
+        
         let renderer = &mut self.renderer;
         renderer.reset();
         {

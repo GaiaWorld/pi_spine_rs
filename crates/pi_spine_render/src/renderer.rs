@@ -2,7 +2,7 @@ use std::{ops::Range, sync::Arc};
 
 use pi_assets::{asset::Handle, mgr::AssetMgr};
 use pi_map::vecmap::VecMap;
-use pi_render::{renderer::{draw_obj::{DrawObj, DrawBindGroups, DrawBindGroup}, sampler::SamplerRes, pipeline::KeyRenderPipelineState, vertices::{RenderVertices, EVerticesBufferUsage, RenderIndices}, draw_obj_list::DrawList, vertex_buffer::VertexBufferAllocator}, rhi::{asset::{TextureRes, RenderRes}, device::RenderDevice, RenderQueue, bind_group::BindGroup}};
+use pi_render::{renderer::{draw_obj::{DrawObj, DrawBindGroups, DrawBindGroup}, sampler::SamplerRes, pipeline::KeyRenderPipelineState, vertices::{RenderVertices, EVerticesBufferUsage, RenderIndices}, draw_obj_list::DrawList, vertex_buffer::VertexBufferAllocator}, rhi::{asset::{TextureRes, RenderRes}, device::RenderDevice, RenderQueue, bind_group::BindGroup, PrimitiveState}};
 use pi_share::Share;
 
 use crate::{shaders::{KeySpineShader, KeySpinePipeline, SingleSpinePipelinePool, SingleBindGroupLayout}, vertex_buffer::SpineVertexBufferAllocator, EPrimitive, binds::param::{SpineBindBuffer, BindBufferAllocator, SpineBindBufferUsage}, bind_groups::SpineBindGroup};
@@ -118,7 +118,7 @@ impl Renderer {
             KeySpineShader::Colored => {
                 let vb = if let Some(vb) = vb_allocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(vertices)) {
                     let mut result = VecMap::default();
-                    result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(vb), buffer_range: Some(Range { start: 0, end: (vertices_len * 4) as u64  }), size_per_value: shader.vertices_bytes_per_element() as u64 });
+                    result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(Arc::new(vb)), buffer_range: Some(Range { start: 0, end: (vertices_len * 4) as u64  }), size_per_value: shader.vertices_bytes_per_element() as u64 });
                     result
                 } else {
                     return;
@@ -129,7 +129,7 @@ impl Renderer {
             KeySpineShader::ColoredTextured => {
                 let vb = if let Some(vb) = vb_allocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(vertices)) {
                     let mut result = VecMap::default();
-                    result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(vb), buffer_range: Some(Range { start: 0, end: (vertices_len * 4) as u64  }), size_per_value: shader.vertices_bytes_per_element() as u64 });
+                    result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(Arc::new(vb)), buffer_range: Some(Range { start: 0, end: (vertices_len * 4) as u64  }), size_per_value: shader.vertices_bytes_per_element() as u64 });
                     result
                 } else {
                     return;
@@ -144,7 +144,7 @@ impl Renderer {
             KeySpineShader::TwoColoredTextured => {
                 let vb = if let Some(vb) = vb_allocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(vertices)) {
                     let mut result = VecMap::default();
-                    result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(vb), buffer_range: Some(Range { start: 0, end: (vertices_len * 4) as u64  }), size_per_value: shader.vertices_bytes_per_element() as u64 });
+                    result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(Arc::new(vb)), buffer_range: Some(Range { start: 0, end: (vertices_len * 4) as u64  }), size_per_value: shader.vertices_bytes_per_element() as u64 });
                     result
                 } else {
                     return;
@@ -160,7 +160,7 @@ impl Renderer {
         
         let ib = if let Some(indices) = indices {
             if let Some(ib) = vb_allocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(indices)) {
-                let temp = RenderIndices { buffer: EVerticesBufferUsage::EVBRange(ib), buffer_range: Some(Range { start: 0, end: (indices_len * 2) as u64  }), format: wgpu::IndexFormat::Uint16 };
+                let temp = RenderIndices { buffer: EVerticesBufferUsage::EVBRange(Arc::new(ib)), buffer_range: Some(Range { start: 0, end: (indices_len * 2) as u64  }), format: wgpu::IndexFormat::Uint16 };
                 Some(temp)
             } else {
                 return;
@@ -178,7 +178,7 @@ impl Renderer {
         let key: KeySpinePipeline = KeySpinePipeline {
             key_shader: shader.clone(),
             key_state: KeyRenderPipelineState {
-                primitive: wgpu::PrimitiveState {
+                primitive: PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleStrip,
                     strip_index_format: Some(wgpu::IndexFormat::Uint16),
                     polygon_mode: wgpu::PolygonMode::Fill,
@@ -202,6 +202,7 @@ impl Renderer {
             pipeline,
             bindgroups,
             vertices: vb,
+            vertex: Range { start: 0, end: vertices_len },
             instances: 0..1,
             indices: ib,
         };
