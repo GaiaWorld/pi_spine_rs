@@ -1,6 +1,7 @@
 use bevy::{prelude::App, winit::WinitPlugin};
 use image::GenericImageView;
 use pi_atom::Atom;
+use pi_bevy_ecs_extend::TShell;
 use pi_bevy_render_plugin::{PiRenderPlugin, PiRenderGraph};
 use pi_render::asset::TAssetKeyU64;
 use pi_scene_math::{Vector4, Matrix};
@@ -8,8 +9,8 @@ use pi_spine_rs::{PluginSpineRenderer, TInterfaceSpine, shaders::KeySpineShader}
 
 use super::{vertices::VERTICES, indices::INDICES};
 
-fn runner(app: &mut App) {
-    let id_renderer = app.create_spine_renderer(Atom::from("Test"), None);
+fn runner(api: &mut Engine) {
+    let id_renderer = api.create_spine_renderer(Atom::from("Test"), None);
 
     //// Texture
     let diffuse_bytes = include_bytes!("../wanzhuqian.png");
@@ -38,11 +39,11 @@ fn runner(app: &mut App) {
     uniform_param.push(1.);
 
     let key_image = Atom::from("../wanzhuqian.png");
-    app.spine_texture(id_renderer, key_image.clone(), diffuse_rgba, dimensions.0, dimensions.1);
-    app.spine_shader(id_renderer, KeySpineShader::TwoColoredTextured);
-    app.spine_uniform(id_renderer, &uniform_param);
-    app.spine_use_texture(id_renderer, key_image.asset_u64());
-    app.spine_draw(
+    api.spine_texture(id_renderer, key_image.clone(), diffuse_rgba, dimensions.0, dimensions.1);
+    api.spine_shader(id_renderer, KeySpineShader::TwoColoredTextured);
+    api.spine_uniform(id_renderer, &uniform_param);
+    api.spine_use_texture(id_renderer, key_image.asset_u64());
+    api.spine_draw(
         id_renderer,
         &VERTICES.as_slice()[0..9636],
         
@@ -53,7 +54,27 @@ fn runner(app: &mut App) {
     log::warn!("Init Ok!!!!!!");
 }
 
-pub fn run() -> App {
+pub struct Engine(App);
+impl TShell for Engine {
+    fn world(&self) -> &bevy::prelude::World {
+        &self.0.world
+    }
+
+    fn world_mut(&mut self) -> &mut bevy::prelude::World {
+        &mut self.0.world
+    }
+
+    fn app(&self) -> &App {
+        &self.0
+    }
+
+    fn app_mut(&mut self) -> &mut App {
+        &mut self.0
+    }
+}
+impl TInterfaceSpine for Engine {}
+
+pub fn run() -> Engine {
     let mut app = App::default();
 
 	let mut window_plugin = bevy::window::WindowPlugin::default();
@@ -75,9 +96,10 @@ pub fn run() -> App {
 
     // let rendergraph = app.world.get_resource::<PiRenderGraph>().unwrap();
     // rendergraph.in
-    runner(&mut app);
+    let mut engine = Engine(app);
+    runner(&mut engine);
 
-    app.run();
+    engine.0.run();
 
-    app
+    engine
 }

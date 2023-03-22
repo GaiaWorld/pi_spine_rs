@@ -284,24 +284,25 @@ impl SysSpineRendererApply {
     }
 }
 
-pub trait TInterfaceSpine {
-    fn create_spine_renderer(&mut self, name: Atom, next_node: Option<Atom>) -> KeySpineRenderer;
-    fn dispose_spine_renderer(&mut self, id_renderer: KeySpineRenderer) -> &mut Self;
-    fn spine_reset(&mut self, id_renderer: KeySpineRenderer) -> &mut Self;
-    fn spine_uniform(&mut self, id_renderer: KeySpineRenderer, value: &[f32]) -> &mut Self;
-    fn spine_shader(&mut self, id_renderer: KeySpineRenderer, value: KeySpineShader) -> &mut Self;
-    fn spine_use_texture(&mut self, id_renderer: KeySpineRenderer, value: u64) -> &mut Self;
-    fn spine_draw(&mut self, id_renderer: KeySpineRenderer, vertices: &[f32], indices: &[u16], vlen: u32, ilen: u32) -> &mut Self;
-    fn spine_texture(&mut self, id_renderer: KeySpineRenderer, key: Atom, data: &[u8], width: u32, height: u32) -> &mut Self;
-}
+// pub trait TInterfaceSpine: TShell {
+//     fn create_spine_renderer(&mut self, name: Atom, next_node: Option<Atom>) -> KeySpineRenderer;
+//     fn dispose_spine_renderer(&mut self, id_renderer: KeySpineRenderer) -> &mut Self;
+//     fn spine_reset(&mut self, id_renderer: KeySpineRenderer) -> &mut Self;
+//     fn spine_uniform(&mut self, id_renderer: KeySpineRenderer, value: &[f32]) -> &mut Self;
+//     fn spine_shader(&mut self, id_renderer: KeySpineRenderer, value: KeySpineShader) -> &mut Self;
+//     fn spine_use_texture(&mut self, id_renderer: KeySpineRenderer, value: u64) -> &mut Self;
+//     fn spine_draw(&mut self, id_renderer: KeySpineRenderer, vertices: &[f32], indices: &[u16], vlen: u32, ilen: u32) -> &mut Self;
+//     fn spine_texture(&mut self, id_renderer: KeySpineRenderer, key: Atom, data: &[u8], width: u32, height: u32) -> &mut Self;
+// }
 
-impl TInterfaceSpine for App {
+pub trait TInterfaceSpine: pi_bevy_ecs_extend::TShell {
     fn create_spine_renderer(&mut self, name: Atom, next_node: Option<Atom>) -> KeySpineRenderer {
-        let mut ctx = self.world.get_resource_mut::<SpineRenderContext>().unwrap();
+        let app = self.app_mut();
+        let mut ctx = app.world.get_resource_mut::<SpineRenderContext>().unwrap();
         
         let id = ctx.create_renderer(next_node.is_none());
 
-        let mut render_graph = self.world.get_resource_mut::<PiRenderGraph>().unwrap();
+        let mut render_graph = app.world.get_resource_mut::<PiRenderGraph>().unwrap();
 
         let key = String::from(name.as_str());
         render_graph.add_node(key.clone(), SpineRenderNode(id));
@@ -315,41 +316,47 @@ impl TInterfaceSpine for App {
     }
 
     fn dispose_spine_renderer(&mut self, id_renderer: KeySpineRenderer) -> &mut Self {
-        let mut ctx = self.world.get_resource_mut::<SpineRenderContext>().unwrap();
+        let app = self.app_mut();
+        let mut ctx = app.world.get_resource_mut::<SpineRenderContext>().unwrap();
         ctx.list.remove(&id_renderer.0);
         self
     }
 
     fn spine_uniform(&mut self, id_renderer: KeySpineRenderer, value: &[f32]) -> &mut Self {
-        let mut cmds = self.world.get_resource_mut::<SingleSpineCommands>().unwrap();
+        let app = self.app_mut();
+        let mut cmds = app.world.get_resource_mut::<SingleSpineCommands>().unwrap();
         cmds.0.push(ESpineCommand::Uniform(id_renderer, value.to_vec()));
         self
     }
 
     fn spine_shader(&mut self, id_renderer: KeySpineRenderer, value: KeySpineShader) -> &mut Self {
-        let mut cmds = self.world.get_resource_mut::<SingleSpineCommands>().unwrap();
+        let app = self.app_mut();
+        let mut cmds = app.world.get_resource_mut::<SingleSpineCommands>().unwrap();
         cmds.0.push(ESpineCommand::Shader(id_renderer, Some(value)));
         self
     }
 
     fn spine_use_texture(&mut self, id_renderer: KeySpineRenderer, value: u64) -> &mut Self {
-        let mut cmds = self.world.get_resource_mut::<SingleSpineCommands>().unwrap();
+        let app = self.app_mut();
+        let mut cmds = app.world.get_resource_mut::<SingleSpineCommands>().unwrap();
         cmds.0.push(ESpineCommand::UseTexture(id_renderer, Some(value)));
         self
     }
 
     fn spine_draw(&mut self, id_renderer: KeySpineRenderer, vertices: &[f32], indices: &[u16], vlen: u32, ilen: u32) -> &mut Self {
-        let mut cmds = self.world.get_resource_mut::<SingleSpineCommands>().unwrap();
+        let app = self.app_mut();
+        let mut cmds = app.world.get_resource_mut::<SingleSpineCommands>().unwrap();
         cmds.0.push(ESpineCommand::Draw(id_renderer, vertices.to_vec(), indices.to_vec(), vlen, ilen ));
         self
     }
 
     fn spine_texture(&mut self, id_renderer: KeySpineRenderer, key: Atom, data: &[u8], width: u32, height: u32) -> &mut Self {
-        let device = self.world.get_resource::<PiRenderDevice>().unwrap();
-        let queue = self.world.get_resource::<PiRenderQueue>().unwrap();
+        let app = self.app_mut();
+        let device = app.world.get_resource::<PiRenderDevice>().unwrap();
+        let queue = app.world.get_resource::<PiRenderQueue>().unwrap();
 
-        let asset_textures = self.world.get_resource::<ShareAssetMgr<TextureRes>>().unwrap();
-        let asset_samplers = self.world.get_resource::<ShareAssetMgr<SamplerRes>>().unwrap();
+        let asset_textures = app.world.get_resource::<ShareAssetMgr<TextureRes>>().unwrap();
+        let asset_samplers = app.world.get_resource::<ShareAssetMgr<SamplerRes>>().unwrap();
 
         let key_u64 = key.asset_u64();
         let texture = if let Some(textureres) = asset_textures.get(&key_u64) {
@@ -432,13 +439,14 @@ impl TInterfaceSpine for App {
             }
         };
         
-        let mut cmds = self.world.get_resource_mut::<SingleSpineCommands>().unwrap();
+        let mut cmds = app.world.get_resource_mut::<SingleSpineCommands>().unwrap();
         cmds.0.push(ESpineCommand::Texture(id_renderer, key_u64, texture, samplerdesc, sampler));
         self
     }
 
     fn spine_reset(&mut self, id_renderer: KeySpineRenderer) -> &mut Self {
-        let mut cmds = self.world.get_resource_mut::<SingleSpineCommands>().unwrap();
+        let app = self.app_mut();
+        let mut cmds = app.world.get_resource_mut::<SingleSpineCommands>().unwrap();
         cmds.0.push(ESpineCommand::Reset(id_renderer));
         self
     }

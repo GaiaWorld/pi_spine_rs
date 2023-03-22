@@ -50,6 +50,7 @@ pi_hal = { git = "https://github.com/GaiaWorld/pi_hal.git" }
 bevy = { version="0.9", default-features = false, features=["bevy_winit"] }
 pi_bevy_render_plugin = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
 pi_bevy_asset = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
+pi_bevy_ecs_extend = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
 
 pi_render = { git = "https://github.com/GaiaWorld/pi_render", branch="bevy_shader" }
 render_utils = { git = "https://github.com/GaiaWorld/pi_render", branch="bevy_shader" }
@@ -65,5 +66,6 @@ render_derive = { path = "../../../pi_render/crates/render_derive" }
 [patch."https://github.com/GaiaWorld/pi_render_bevy"]
 pi_bevy_render_plugin = { path = "../../../pi_render_bevy/crates/render" }
 pi_bevy_asset = { path = "../../../pi_render_bevy/crates/asset" }
+pi_bevy_ecs_extend = { path = "../../../pi_render_bevy/crates/ecs_extend" }
 
 # [[example]]
