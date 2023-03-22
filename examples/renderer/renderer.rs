@@ -4,7 +4,7 @@ use std::{num::NonZeroU32, time::SystemTime, sync::Arc};
 use image::{GenericImageView};
 use pi_assets::{mgr::AssetMgr, asset::GarbageEmpty};
 use pi_atom::Atom;
-use pi_render::{components::view::target_alloc::{SafeAtlasAllocator, ShareTargetView}, rhi::{device::RenderDevice, asset::{RenderRes, TextureRes, }, bind_group::BindGroup, RenderQueue, sampler::{Sampler, SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}, }, renderer::{draw_obj_list::DrawList, vertex_buffer::VertexBufferAllocator}};
+use pi_render::{components::view::target_alloc::{SafeAtlasAllocator, ShareTargetView}, rhi::{device::RenderDevice, asset::{RenderRes, TextureRes, }, bind_group::BindGroup, RenderQueue, sampler::{Sampler, SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}, }, renderer::{draw_obj_list::DrawList, vertex_buffer::VertexBufferAllocator}, depend_graph::graph::DependGraph};
 use pi_scene_math::{Matrix, Vector4};
 use pi_share::Share;
 use pi_spine_render::{renderer::Renderer, vertex_buffer::SpineVertexBufferAllocator, shaders::{SingleSpinePipelinePool, SingleSpineBindGroupLayout, KeySpineShader}, binds::param::BindBufferAllocator};
