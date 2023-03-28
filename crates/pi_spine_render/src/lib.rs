@@ -39,7 +39,7 @@ impl Node for SpineRenderNode {
 
     type Output = SimpleInOut;
 
-    type Param = ();
+    type Param = (Res<'static, PiScreenTexture>);
 
     fn run<'a>(
         &'a mut self,
@@ -50,6 +50,7 @@ impl Node for SpineRenderNode {
         input: &'a Self::Input,
         usage: &'a pi_bevy_render_plugin::node::ParamUsage,
     ) -> pi_futures::BoxFuture<'a, Result<Self::Output, String>> {
+        log::warn!("Node: >>>>>>>");
         let atlas_allocator = world.get_resource::<PiSafeAtlasAllocator>().unwrap();
         let temp: Vec<ShareTargetView> = vec![];
         
@@ -58,12 +59,15 @@ impl Node for SpineRenderNode {
         let renderer = if let Some(renderer) = spine_ctx.list.get(&self.0.0) {
             renderer
         } else {
+            log::warn!("Null: >>>>>>>");
             return async move {
                 Ok(SimpleInOut { target: None })
             }.boxed();
         };
         
         if renderer.screen == false {
+            log::warn!("Temp: >>>>>>>");
+            Box::pin(
             async move {
                 
                 let mut encoder = commands.0.as_ref().borrow_mut();
@@ -130,41 +134,42 @@ impl Node for SpineRenderNode {
                 }
 
                 Ok(SimpleInOut { target: Some(target) })
-            }.boxed()
+            })
         } else {
-            
-            let mut encoder = commands.0.as_ref().borrow_mut();
-            let screen = world.get_resource::<PiScreenTexture>().unwrap();
-            let view = screen.0.as_ref().unwrap().view.as_ref().unwrap();
+            let screen = param.get(world);
 
-            let mut renderpass = encoder.begin_render_pass(
-                &wgpu::RenderPassDescriptor {
-                    label: None,
-                    color_attachments: &[
-                        Some(
-                            wgpu::RenderPassColorAttachment {
-                                view: &view,
-                                resolve_target: None,
-                                ops: wgpu::Operations {
-                                    load: wgpu::LoadOp::Load,
-                                    store: true,
+            let view = screen.0.as_ref().unwrap().view.as_ref().unwrap().clone();
+
+            log::warn!("screen: >>>>>>>");
+
+            Box::pin(async move {
+                let mut encoder = commands.0.as_ref().borrow_mut();
+                let mut renderpass = encoder.begin_render_pass(
+                    &wgpu::RenderPassDescriptor {
+                        label: None,
+                        color_attachments: &[
+                            Some(
+                                wgpu::RenderPassColorAttachment {
+                                    view: &view,
+                                    resolve_target: None,
+                                    ops: wgpu::Operations {
+                                        load: wgpu::LoadOp::Load,
+                                        store: true,
+                                    }
                                 }
-                            }
-                        )
-                    ],
-                    depth_stencil_attachment: None,
-                }
-            );
-            
-            // renderpass.set_viewport(x, y, w, h, min_depth, max_depth);
-            // renderpass.set_scissor_rect(x as u32, y as u32, w as u32, h as u32);
-            log::warn!("Draws: {:?}", renderer.render.drawobjs.list.len());
-            DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
-    
-            
-            async move {
+                            )
+                        ],
+                        depth_stencil_attachment: None,
+                    }
+                );
+                
+                // renderpass.set_viewport(x, y, w, h, min_depth, max_depth);
+                // renderpass.set_scissor_rect(x as u32, y as u32, w as u32, h as u32);
+                log::warn!("Draws: {:?}", renderer.render.drawobjs.list.len());
+                DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
+
                 Ok(SimpleInOut { target: None })
-            }.boxed()
+            })
         }
     }
 }
@@ -208,8 +213,10 @@ pub struct SysSpineCommands;
 impl SysSpineCommands {
     fn sys(
         mut cmds: ResMut<SingleSpineCommands>,
+        mut clearopt: ResMut<PiClearOptions>,
         mut renderers: ResMut<SpineRenderContext>,
     ) {
+        clearopt.color.g = 0.;
         let mut list = replace(&mut cmds.0, vec![]);
         list.drain(..).for_each(|(cmd)| {
             log::warn!("Cmd: ");
@@ -296,67 +303,99 @@ impl SysSpineRendererApply {
 // }
 
 pub trait TInterfaceSpine: pi_bevy_ecs_extend::TShell {
-    fn create_spine_renderer(&mut self, name: Atom, next_node: Option<Atom>) -> KeySpineRenderer {
-        let app = self.app_mut();
-        let mut ctx = app.world.get_resource_mut::<SpineRenderContext>().unwrap();
+    fn create_spine_renderer(
+        name: Atom,
+        next_node: Option<Atom>,
+        ctx: &mut SpineRenderContext,
+        render_graph: &mut PiRenderGraph,
+    ) -> KeySpineRenderer {
         
         let id = ctx.create_renderer(next_node.is_none());
-
-        let mut render_graph = app.world.get_resource_mut::<PiRenderGraph>().unwrap();
 
         let key = String::from(name.as_str());
         render_graph.add_node(key.clone(), SpineRenderNode(id));
         if let Some(next_node) = next_node {
             render_graph.add_depend(key, String::from(next_node.as_str()));
         } else {
-            // render_graph.add_depend(key, CLEAR_WIDNOW_NODE);
+            // render_graph.add_depend(CLEAR_WIDNOW_NODE, key);
         }
 
         id
     }
 
-    fn dispose_spine_renderer(&mut self, id_renderer: KeySpineRenderer) -> &mut Self {
-        let app = self.app_mut();
-        let mut ctx = app.world.get_resource_mut::<SpineRenderContext>().unwrap();
+    fn dispose_spine_renderer(
+        id_renderer: KeySpineRenderer,
+        ctx: &mut SpineRenderContext,
+    ) {
         ctx.list.remove(&id_renderer.0);
-        self
     }
 
-    fn spine_uniform(&mut self, id_renderer: KeySpineRenderer, value: &[f32]) -> &mut Self {
-        let app = self.app_mut();
-        let mut cmds = app.world.get_resource_mut::<SingleSpineCommands>().unwrap();
-        cmds.0.push(ESpineCommand::Uniform(id_renderer, value.to_vec()));
-        self
+    fn spine_uniform(
+        id_renderer: KeySpineRenderer,
+        value: &[f32],
+        ctx: &mut SpineRenderContext,
+    ) {
+        if let Some(renderer) = ctx.list.get_mut(&id_renderer.0) {
+            renderer.render.uniform(value.to_vec())
+        }
     }
 
-    fn spine_shader(&mut self, id_renderer: KeySpineRenderer, value: KeySpineShader) -> &mut Self {
-        let app = self.app_mut();
-        let mut cmds = app.world.get_resource_mut::<SingleSpineCommands>().unwrap();
-        cmds.0.push(ESpineCommand::Shader(id_renderer, Some(value)));
-        self
+    fn spine_shader(
+        id_renderer: KeySpineRenderer,
+        value: KeySpineShader,
+        ctx: &mut SpineRenderContext,
+    ) {
+        if let Some(renderer) = ctx.list.get_mut(&id_renderer.0) {
+            renderer.render.shader(Some(value))
+        }
     }
 
-    fn spine_use_texture(&mut self, id_renderer: KeySpineRenderer, value: u64) -> &mut Self {
-        let app = self.app_mut();
-        let mut cmds = app.world.get_resource_mut::<SingleSpineCommands>().unwrap();
-        cmds.0.push(ESpineCommand::UseTexture(id_renderer, Some(value)));
-        self
+    fn spine_use_texture(
+        id_renderer: KeySpineRenderer,
+        value: u64,
+        ctx: &mut SpineRenderContext,
+    ) {
+        let samplerdesc = SamplerDesc {
+            address_mode_u: EAddressMode::ClampToEdge,
+            address_mode_v: EAddressMode::ClampToEdge,
+            address_mode_w: EAddressMode::ClampToEdge,
+            mag_filter: EFilterMode::Linear,
+            min_filter: EFilterMode::Linear,
+            mipmap_filter: EFilterMode::Nearest,
+            compare: None,
+            anisotropy_clamp: EAnisotropyClamp::One,
+            border_color: None,
+        };
+        if let Some(renderer) = ctx.list.get_mut(&id_renderer.0) {
+            renderer.render.texture(Some(value), Some(samplerdesc))
+        }
     }
 
-    fn spine_draw(&mut self, id_renderer: KeySpineRenderer, vertices: &[f32], indices: &[u16], vlen: u32, ilen: u32) -> &mut Self {
-        let app = self.app_mut();
-        let mut cmds = app.world.get_resource_mut::<SingleSpineCommands>().unwrap();
-        cmds.0.push(ESpineCommand::Draw(id_renderer, vertices.to_vec(), indices.to_vec(), vlen, ilen ));
-        self
+    fn spine_draw(
+        id_renderer: KeySpineRenderer,
+        vertices: &[f32],
+        indices: &[u16],
+        vlen: u32,
+        ilen: u32,
+        ctx: &mut SpineRenderContext,
+    ) {
+        if let Some(renderer) = ctx.list.get_mut(&id_renderer.0) {
+            renderer.render.draw(vertices.to_vec(), Some(indices.to_vec()), vlen, ilen)
+        }
     }
 
-    fn spine_texture(&mut self, id_renderer: KeySpineRenderer, key: Atom, data: &[u8], width: u32, height: u32) -> &mut Self {
-        let app = self.app_mut();
-        let device = app.world.get_resource::<PiRenderDevice>().unwrap();
-        let queue = app.world.get_resource::<PiRenderQueue>().unwrap();
-
-        let asset_textures = app.world.get_resource::<ShareAssetMgr<TextureRes>>().unwrap();
-        let asset_samplers = app.world.get_resource::<ShareAssetMgr<SamplerRes>>().unwrap();
+    fn spine_texture(
+        id_renderer: KeySpineRenderer,
+        key: Atom,
+        data: &[u8],
+        width: u32,
+        height: u32,
+        device: & PiRenderDevice,
+        queue: & PiRenderQueue,
+        asset_textures: & ShareAssetMgr<TextureRes>,
+        asset_samplers: & ShareAssetMgr<SamplerRes>,
+        ctx: &mut SpineRenderContext,
+    ) {
 
         let key_u64 = key.asset_u64();
         let texture = if let Some(textureres) = asset_textures.get(&key_u64) {
@@ -413,7 +452,7 @@ pub trait TInterfaceSpine: pi_bevy_ecs_extend::TShell {
             if let Some(texture) = asset_textures.insert(key_u64, textureres) {
                 texture
             } else {
-                return self;
+                return;
             }
         };
 
@@ -432,23 +471,26 @@ pub trait TInterfaceSpine: pi_bevy_ecs_extend::TShell {
         let sampler = if let Some(sampler) = asset_samplers.get(&samplerdesc) {
             sampler
         } else {
-            if let Some(sampler) = asset_samplers.insert(samplerdesc.clone(), SamplerRes::new(device, &samplerdesc)) {
+            if let Some(sampler) = asset_samplers.insert(samplerdesc.clone(), SamplerRes::new(&device, &samplerdesc)) {
                 sampler
             } else {
-                return self;
+                return;
             }
         };
-        
-        let mut cmds = app.world.get_resource_mut::<SingleSpineCommands>().unwrap();
-        cmds.0.push(ESpineCommand::Texture(id_renderer, key_u64, texture, samplerdesc, sampler));
-        self
+
+        if let Some(renderer) = ctx.list.get_mut(&id_renderer.0) {
+            renderer.render.textures.insert(key_u64, texture);
+            renderer.render.samplers.insert(samplerdesc, sampler);
+        }
     }
 
-    fn spine_reset(&mut self, id_renderer: KeySpineRenderer) -> &mut Self {
-        let app = self.app_mut();
-        let mut cmds = app.world.get_resource_mut::<SingleSpineCommands>().unwrap();
-        cmds.0.push(ESpineCommand::Reset(id_renderer));
-        self
+    fn spine_reset(
+        id_renderer: KeySpineRenderer,
+        ctx: &mut SpineRenderContext,
+    ) {
+        if let Some(renderer) = ctx.list.get_mut(&id_renderer.0) {
+            renderer.render.reset();
+        }
     }
 }
 
@@ -468,7 +510,7 @@ impl Plugin for PluginSpineRenderer {
             .insert_resource(SpineResource::new(&device))
             .insert_resource(SpineRenderContext::new());
 
-        app.add_system_to_stage(CoreStage::First, SysSpineCommands::sys);
+        // app.add_system_to_stage(CoreStage::First, SysSpineCommands::sys);
         app.add_system_to_stage(CoreStage::Update, SysSpineRendererApply::sys);
 
         log::warn!("PluginSpineRenderer");
