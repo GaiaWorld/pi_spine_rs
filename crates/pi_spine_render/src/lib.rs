@@ -1,15 +1,15 @@
 
 use std::{mem::replace, num::NonZeroU32};
 
-use bevy::prelude::{ResMut, Resource, Entity, App, Plugin, Res, CoreStage};
+use bevy::prelude::{ResMut, Resource, App, Plugin, Res, CoreStage};
 use futures::FutureExt;
 use pi_assets::{mgr::AssetMgr, asset::{Handle, GarbageEmpty}};
 use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
-use pi_bevy_render_plugin::{PiRenderDevice, PiRenderQueue, param::InParam, node::Node, PiSafeAtlasAllocator, SimpleInOut, NodeId, PiScreenTexture, PiClearOptions, PiRenderGraph, CLEAR_WIDNOW_NODE};
+use pi_bevy_render_plugin::{PiRenderDevice, PiRenderQueue, node::Node, PiSafeAtlasAllocator, SimpleInOut, PiScreenTexture, PiClearOptions, PiRenderGraph};
 use pi_hash::XHashMap;
-use pi_render::{rhi::{sampler::{SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}, device::RenderDevice, asset::TextureRes}, asset::TAssetKeyU64, renderer::{sampler::SamplerRes, draw_obj_list::DrawList}, components::view::target_alloc::{ShareTargetView, TargetDescriptor, TextureDescriptor}};
-use renderer::{Renderer, RendererAsync, SpineResource};
+use pi_render::{rhi::{sampler::{SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}, asset::TextureRes}, asset::TAssetKeyU64, renderer::{sampler::SamplerRes, draw_obj_list::DrawList}, components::view::target_alloc::{ShareTargetView, TargetDescriptor, TextureDescriptor}};
+use renderer::{RendererAsync, SpineResource};
 use shaders::KeySpineShader;
 use smallvec::SmallVec;
 
@@ -22,6 +22,17 @@ pub mod renderer;
 pub mod ecs;
 
 pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
+const SAMPLER_DESC: SamplerDesc = SamplerDesc {
+    address_mode_u: EAddressMode::Repeat,
+    address_mode_v: EAddressMode::Repeat,
+    address_mode_w: EAddressMode::Repeat,
+    mag_filter: EFilterMode::Linear,
+    min_filter: EFilterMode::Linear,
+    mipmap_filter: EFilterMode::Nearest,
+    compare: None,
+    anisotropy_clamp: EAnisotropyClamp::One,
+    border_color: None,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct KeySpineRenderer(pub(crate) u32);
@@ -39,18 +50,17 @@ impl Node for SpineRenderNode {
 
     type Output = SimpleInOut;
 
-    type Param = (Res<'static, PiScreenTexture>);
+    type Param = Res<'static, PiScreenTexture>;
 
     fn run<'a>(
         &'a mut self,
         world: &'a bevy::prelude::World,
         param: &'a mut bevy::ecs::system::SystemState<Self::Param>,
-        context: pi_bevy_render_plugin::RenderContext,
+        _context: pi_bevy_render_plugin::RenderContext,
         commands: pi_share::ShareRefCell<wgpu::CommandEncoder>,
-        input: &'a Self::Input,
-        usage: &'a pi_bevy_render_plugin::node::ParamUsage,
+        _input: &'a Self::Input,
+        _usage: &'a pi_bevy_render_plugin::node::ParamUsage,
     ) -> pi_futures::BoxFuture<'a, Result<Self::Output, String>> {
-        log::warn!("Node: >>>>>>>");
         let atlas_allocator = world.get_resource::<PiSafeAtlasAllocator>().unwrap();
         let temp: Vec<ShareTargetView> = vec![];
         
@@ -59,14 +69,12 @@ impl Node for SpineRenderNode {
         let renderer = if let Some(renderer) = spine_ctx.list.get(&self.0.0) {
             renderer
         } else {
-            log::warn!("Null: >>>>>>>");
             return async move {
                 Ok(SimpleInOut { target: None })
             }.boxed();
         };
         
         if renderer.screen == false {
-            log::warn!("Temp: >>>>>>>");
             Box::pin(
             async move {
                 
@@ -137,10 +145,7 @@ impl Node for SpineRenderNode {
             })
         } else {
             let screen = param.get(world);
-
             let view = screen.0.as_ref().unwrap().view.as_ref().unwrap().clone();
-
-            log::warn!("screen: >>>>>>>");
 
             Box::pin(async move {
                 let mut encoder = commands.0.as_ref().borrow_mut();
@@ -165,7 +170,7 @@ impl Node for SpineRenderNode {
                 
                 // renderpass.set_viewport(x, y, w, h, min_depth, max_depth);
                 // renderpass.set_scissor_rect(x as u32, y as u32, w as u32, h as u32);
-                log::warn!("Draws: {:?}", renderer.render.drawobjs.list.len());
+                log::info!("Draws: {:?}", renderer.render.drawobjs.list.len());
                 DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
 
                 Ok(SimpleInOut { target: None })
@@ -199,12 +204,16 @@ impl SpineRenderContext {
 pub enum ESpineCommand {
     Reset(KeySpineRenderer),
     RenderSize(KeySpineRenderer, u32, u32),
-    Uniform(KeySpineRenderer, Vec<f32>),
     Shader(KeySpineRenderer, Option<KeySpineShader>),
     UseTexture(KeySpineRenderer, Option<u64>),
     Texture(KeySpineRenderer, u64, Handle<TextureRes>, SamplerDesc, Handle<SamplerRes>),
+    Blend(KeySpineRenderer, bool),
+    BlendMode(KeySpineRenderer, wgpu::BlendFactor, wgpu::BlendFactor),
+    Uniform(KeySpineRenderer, Vec<f32>),
     Draw(KeySpineRenderer, Vec<f32>, Vec<u16>, u32, u32),
 }
+
+
 
 #[derive(Resource, Default)]
 pub struct SingleSpineCommands(pub Vec<ESpineCommand>);
@@ -218,42 +227,36 @@ impl SysSpineCommands {
     ) {
         clearopt.color.g = 0.;
         let mut list = replace(&mut cmds.0, vec![]);
-        list.drain(..).for_each(|(cmd)| {
-            log::warn!("Cmd: ");
+        list.drain(..).for_each(|cmd| {
             match cmd {
                 ESpineCommand::Uniform(id, val) => {
                     if let Some(renderer) = renderers.list.get_mut(&id.0) {
+                        // log::warn!("Cmd: Uniform");
                         renderer.render.uniform(val);
                     }
                 },
                 ESpineCommand::Shader(id, val) => {
                     if let Some(renderer) = renderers.list.get_mut(&id.0) {
+                        // log::warn!("Cmd: Shader");
                         renderer.render.shader(val);
                     }
                 },
                 ESpineCommand::UseTexture(id, val) => {
                     if let Some(renderer) = renderers.list.get_mut(&id.0) {
-                        let samplerdesc = SamplerDesc {
-                            address_mode_u: EAddressMode::Repeat,
-                            address_mode_v: EAddressMode::Repeat,
-                            address_mode_w: EAddressMode::Repeat,
-                            mag_filter: EFilterMode::Linear,
-                            min_filter: EFilterMode::Linear,
-                            mipmap_filter: EFilterMode::Nearest,
-                            compare: None,
-                            anisotropy_clamp: EAnisotropyClamp::One,
-                            border_color: None,
-                        };
+                        let samplerdesc = SAMPLER_DESC.clone();
+                        // log::warn!("Cmd: UseTexture");
                         renderer.render.texture(val, Some(samplerdesc));
                     }
                 },
                 ESpineCommand::Draw(id, vertices, indices, vlen, ilen) => {
                     if let Some(renderer) = renderers.list.get_mut(&id.0) {
+                        // log::warn!("Cmd: Draw");
                         renderer.render.draw(vertices, Some(indices), vlen, ilen);
                     }
                 },
                 ESpineCommand::Texture(id, key, value, key2, value2) => {
                     if let Some(renderer) = renderers.list.get_mut(&id.0) {
+                        // log::warn!("Cmd: Texture");
                         renderer.render.textures.insert(key, value);
                         renderer.render.samplers.insert(key2, value2);
                     }
@@ -267,6 +270,17 @@ impl SysSpineCommands {
                 ESpineCommand::Reset(id) => {
                     if let Some(renderer) = renderers.list.get_mut(&id.0) {
                         renderer.render.reset();
+                    }
+                },
+                ESpineCommand::Blend(id, val) => {
+                    if let Some(renderer) = renderers.list.get_mut(&id.0) {
+                        renderer.render.blend(val);
+                    }
+                }
+                ,
+                ESpineCommand::BlendMode(id, val0, val1) => {
+                    if let Some(renderer) = renderers.list.get_mut(&id.0) {
+                        renderer.render.blend_mode(val0, val1);
                     }
                 },
             }
@@ -284,8 +298,8 @@ impl SysSpineRendererApply {
         asset_samplers: Res<ShareAssetMgr<SamplerRes>>,
         asset_textures: Res<ShareAssetMgr<TextureRes>>,
     ) {
-        renderers.list.iter_mut().for_each(|(k, v)| {
-            log::warn!("Apply: ");
+        // log::warn!("Apply: {:?}", renderers.list.len());
+        renderers.list.iter_mut().for_each(|(_, v)| {
             v.render.drawlist(&device, &queue, &mut resource, &asset_samplers, &asset_textures);
         })
     }
@@ -313,11 +327,20 @@ pub trait TInterfaceSpine: pi_bevy_ecs_extend::TShell {
         let id = ctx.create_renderer(next_node.is_none());
 
         let key = String::from(name.as_str());
-        render_graph.add_node(key.clone(), SpineRenderNode(id));
-        if let Some(next_node) = next_node {
-            render_graph.add_depend(key, String::from(next_node.as_str()));
-        } else {
-            // render_graph.add_depend(CLEAR_WIDNOW_NODE, key);
+        match render_graph.add_node(key.clone(), SpineRenderNode(id)) {
+            Ok(v) => {
+                if let Some(next_node) = next_node {
+                    render_graph.add_depend(key, String::from(next_node.as_str()));
+                    ctx.list.get_mut(&id.0).unwrap().render.target_format = wgpu::TextureFormat::Rgba8UnormSrgb;
+                } else {
+                    render_graph.set_finish(key, true);
+                }
+        
+                render_graph.dump_graphviz();
+            },
+            Err(e) => {
+                log::warn!("Add Node Error {:?}", e)
+            },
         }
 
         id
@@ -331,60 +354,42 @@ pub trait TInterfaceSpine: pi_bevy_ecs_extend::TShell {
     }
 
     fn spine_uniform(
+        cmds: &mut Vec<ESpineCommand>,
         id_renderer: KeySpineRenderer,
         value: &[f32],
-        ctx: &mut SpineRenderContext,
     ) {
-        if let Some(renderer) = ctx.list.get_mut(&id_renderer.0) {
-            renderer.render.uniform(value.to_vec())
-        }
+        cmds.push(ESpineCommand::Uniform(id_renderer, value.to_vec()));
     }
 
     fn spine_shader(
+        cmds: &mut Vec<ESpineCommand>,
         id_renderer: KeySpineRenderer,
         value: KeySpineShader,
-        ctx: &mut SpineRenderContext,
     ) {
-        if let Some(renderer) = ctx.list.get_mut(&id_renderer.0) {
-            renderer.render.shader(Some(value))
-        }
+        cmds.push(ESpineCommand::Shader(id_renderer, Some(value)));
     }
 
     fn spine_use_texture(
+        cmds: &mut Vec<ESpineCommand>,
         id_renderer: KeySpineRenderer,
         value: u64,
-        ctx: &mut SpineRenderContext,
     ) {
-        let samplerdesc = SamplerDesc {
-            address_mode_u: EAddressMode::ClampToEdge,
-            address_mode_v: EAddressMode::ClampToEdge,
-            address_mode_w: EAddressMode::ClampToEdge,
-            mag_filter: EFilterMode::Linear,
-            min_filter: EFilterMode::Linear,
-            mipmap_filter: EFilterMode::Nearest,
-            compare: None,
-            anisotropy_clamp: EAnisotropyClamp::One,
-            border_color: None,
-        };
-        if let Some(renderer) = ctx.list.get_mut(&id_renderer.0) {
-            renderer.render.texture(Some(value), Some(samplerdesc))
-        }
+        cmds.push(ESpineCommand::UseTexture(id_renderer, Some(value)));
     }
 
     fn spine_draw(
+        cmds: &mut Vec<ESpineCommand>,
         id_renderer: KeySpineRenderer,
         vertices: &[f32],
         indices: &[u16],
         vlen: u32,
         ilen: u32,
-        ctx: &mut SpineRenderContext,
     ) {
-        if let Some(renderer) = ctx.list.get_mut(&id_renderer.0) {
-            renderer.render.draw(vertices.to_vec(), Some(indices.to_vec()), vlen, ilen)
-        }
+        cmds.push(ESpineCommand::Draw(id_renderer, vertices.to_vec(), indices.to_vec(), vlen, ilen));
     }
 
     fn spine_texture(
+        cmds: &mut Vec<ESpineCommand>,
         id_renderer: KeySpineRenderer,
         key: Atom,
         data: &[u8],
@@ -394,7 +399,6 @@ pub trait TInterfaceSpine: pi_bevy_ecs_extend::TShell {
         queue: & PiRenderQueue,
         asset_textures: & ShareAssetMgr<TextureRes>,
         asset_samplers: & ShareAssetMgr<SamplerRes>,
-        ctx: &mut SpineRenderContext,
     ) {
 
         let key_u64 = key.asset_u64();
@@ -456,17 +460,7 @@ pub trait TInterfaceSpine: pi_bevy_ecs_extend::TShell {
             }
         };
 
-        let samplerdesc = SamplerDesc {
-            address_mode_u: EAddressMode::ClampToEdge,
-            address_mode_v: EAddressMode::ClampToEdge,
-            address_mode_w: EAddressMode::ClampToEdge,
-            mag_filter: EFilterMode::Linear,
-            min_filter: EFilterMode::Linear,
-            mipmap_filter: EFilterMode::Nearest,
-            compare: None,
-            anisotropy_clamp: EAnisotropyClamp::One,
-            border_color: None,
-        };
+        let samplerdesc = SAMPLER_DESC.clone();
 
         let sampler = if let Some(sampler) = asset_samplers.get(&samplerdesc) {
             sampler
@@ -478,19 +472,14 @@ pub trait TInterfaceSpine: pi_bevy_ecs_extend::TShell {
             }
         };
 
-        if let Some(renderer) = ctx.list.get_mut(&id_renderer.0) {
-            renderer.render.textures.insert(key_u64, texture);
-            renderer.render.samplers.insert(samplerdesc, sampler);
-        }
+        cmds.push(ESpineCommand::Texture(id_renderer, key_u64, texture, samplerdesc, sampler));
     }
 
     fn spine_reset(
+        cmds: &mut Vec<ESpineCommand>,
         id_renderer: KeySpineRenderer,
-        ctx: &mut SpineRenderContext,
     ) {
-        if let Some(renderer) = ctx.list.get_mut(&id_renderer.0) {
-            renderer.render.reset();
-        }
+        cmds.push(ESpineCommand::Reset(id_renderer));
     }
 }
 
@@ -510,7 +499,7 @@ impl Plugin for PluginSpineRenderer {
             .insert_resource(SpineResource::new(&device))
             .insert_resource(SpineRenderContext::new());
 
-        // app.add_system_to_stage(CoreStage::First, SysSpineCommands::sys);
+        app.add_system_to_stage(CoreStage::First, SysSpineCommands::sys);
         app.add_system_to_stage(CoreStage::Update, SysSpineRendererApply::sys);
 
         log::warn!("PluginSpineRenderer");

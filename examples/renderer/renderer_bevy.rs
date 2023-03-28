@@ -19,7 +19,7 @@ fn runner(
     asset_samplers: Res<ShareAssetMgr<SamplerRes>>,
     mut cmds: ResMut<SingleSpineCommands>,
 ) {
-    let id_renderer = Engine::create_spine_renderer(Atom::from("Test"), None, &mut ctx, &mut render_graph);
+    let id_renderer = Engine::create_spine_renderer(Atom::from("TestSpine"), None, &mut ctx, &mut render_graph);
 
     //// Texture
     let diffuse_bytes = include_bytes!("../wanzhuqian.png");
@@ -48,18 +48,17 @@ fn runner(
     uniform_param.push(1.);
 
     let key_image = Atom::from("../wanzhuqian.png");
-    Engine::spine_texture(id_renderer, key_image.clone(), diffuse_rgba, dimensions.0, dimensions.1, &device, &queue, &asset_textures, &asset_samplers, &mut ctx);
-    Engine::spine_shader(id_renderer, KeySpineShader::TwoColoredTextured, &mut ctx);
-    Engine::spine_uniform(id_renderer, &uniform_param, &mut ctx);
-    Engine::spine_use_texture(id_renderer, key_image.asset_u64(), &mut ctx);
+    Engine::spine_texture(&mut cmds.0, id_renderer, key_image.clone(), diffuse_rgba, dimensions.0, dimensions.1, &device, &queue, &asset_textures, &asset_samplers);
+    Engine::spine_shader(&mut cmds.0, id_renderer, KeySpineShader::TwoColoredTextured);
+    Engine::spine_uniform(&mut cmds.0, id_renderer, &uniform_param);
+    Engine::spine_use_texture(&mut cmds.0, id_renderer, key_image.asset_u64());
     Engine::spine_draw(
+        &mut cmds.0, 
         id_renderer,
         &VERTICES.as_slice()[0..9636],
-        
         &INDICES.as_slice()[0..2352],
         9636,
         2352,
-        &mut ctx
     );
     log::warn!("Init Ok!!!!!!");
 }

@@ -1,14 +1,13 @@
-use std::{ops::Range, sync::Arc, hash::{Hash, Hasher}};
+use std::{ops::Range, sync::Arc};
 
-use bevy::prelude::{system_adapter::new, Resource};
+use bevy::prelude::{Resource};
 use pi_assets::{asset::{Handle, GarbageEmpty}, mgr::AssetMgr};
-use pi_atom::Atom;
 use pi_hash::XHashMap;
 use pi_map::vecmap::VecMap;
 use pi_render::{renderer::{draw_obj::{DrawObj, DrawBindGroups, DrawBindGroup}, sampler::SamplerRes, pipeline::KeyRenderPipelineState, vertices::{RenderVertices, EVerticesBufferUsage, RenderIndices}, draw_obj_list::DrawList, vertex_buffer::VertexBufferAllocator, texture::image_texture::KeyImageTexture}, rhi::{asset::{TextureRes, RenderRes}, device::RenderDevice, RenderQueue, bind_group::BindGroup, PrimitiveState, sampler::SamplerDesc}, asset::TAssetKeyU64};
 use pi_share::Share;
 
-use crate::{shaders::{KeySpineShader, KeySpinePipeline, SingleSpinePipelinePool, SingleSpineBindGroupLayout}, binds::param::{SpineBindBuffer, BindBufferAllocator, SpineBindBufferUsage}, bind_groups::SpineBindGroup, FORMAT};
+use crate::{shaders::{KeySpineShader, KeySpinePipeline, SingleSpinePipelinePool, SingleSpineBindGroupLayout}, binds::param::{BindBufferAllocator, SpineBindBufferUsage}, bind_groups::SpineBindGroup, FORMAT};
 
 
 
@@ -258,6 +257,7 @@ pub struct RendererAsync {
     uniform_param: Vec<Vec<f32>>,
     texture: Option<u64>,
     sampler: Option<SamplerDesc>,
+    pub(crate) target_format: wgpu::TextureFormat,
 }
 impl RendererAsync {
     pub fn new() -> Self {
@@ -275,12 +275,13 @@ impl RendererAsync {
                 },
                 alpha: wgpu::BlendComponent::OVER,
             },
-            enableblend: false,
+            enableblend: true,
             uniform_param: vec![],
             texture: None,
             sampler: None,
             textures: XHashMap::default(),
             samplers: XHashMap::default(),
+            target_format: wgpu::TextureFormat::Bgra8Unorm,
         }
     }
     pub fn drawlist(
@@ -348,7 +349,9 @@ impl RendererAsync {
                             let bindgroup = SpineBindGroup::two_colored_textured(bind.0.clone(), device, texture, sampler, &resource.asset_mgr_bindgroup, &resource.bind_group_layouts);
                             (vb, bindgroup)
                         },
-                        _ => return,
+                        _ => {
+                            return
+                        },
                     }
                 },
             };
@@ -491,7 +494,7 @@ impl RendererAsync {
                 },
                 multisample: wgpu::MultisampleState { count: 1, mask: !0, alpha_to_coverage_enabled: false },
                 depth_stencil: None,
-                target_state: vec![Some(wgpu::ColorTargetState { format: FORMAT, blend, write_mask: wgpu::ColorWrites::ALL })],
+                target_state: vec![Some(wgpu::ColorTargetState { format: self.target_format, blend, write_mask: wgpu::ColorWrites::ALL })],
             },
         };
         
