@@ -4,11 +4,15 @@ use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
 use pi_bevy_ecs_extend::TShell;
 use pi_bevy_render_plugin::{PiRenderPlugin, PiRenderGraph, PiRenderDevice, PiRenderQueue};
+use pi_final_render_target::{PluginFinalRender, FinalRenderTarget};
 use pi_render::{asset::TAssetKeyU64, rhi::asset::TextureRes, renderer::sampler::SamplerRes};
 use pi_scene_math::{Vector4, Matrix};
 use pi_spine_rs::{PluginSpineRenderer, TInterfaceSpine, shaders::KeySpineShader, SpineRenderContext, ecs::{ResMut, Res}, SingleSpineCommands};
 
 use super::{vertices::VERTICES, indices::INDICES};
+
+pub struct SpineAPI;
+impl TInterfaceSpine for SpineAPI {}
 
 fn runner(
     mut ctx: ResMut<SpineRenderContext>,
@@ -18,8 +22,9 @@ fn runner(
     asset_textures: Res<ShareAssetMgr<TextureRes>>,
     asset_samplers: Res<ShareAssetMgr<SamplerRes>>,
     mut cmds: ResMut<SingleSpineCommands>,
+    mut final_render: Res<FinalRenderTarget>,
 ) {
-    let id_renderer = Engine::create_spine_renderer(Atom::from("TestSpine"), None, &mut ctx, &mut render_graph);
+    let id_renderer = SpineAPI::create_spine_renderer(Atom::from("TestSpine"), None, &mut ctx, &mut render_graph, &final_render);
 
     //// Texture
     let diffuse_bytes = include_bytes!("../wanzhuqian.png");
@@ -47,12 +52,12 @@ fn runner(
     });
     uniform_param.push(1.);
 
-    let key_image = Atom::from("../wanzhuqian.png");
-    Engine::spine_texture(&mut cmds.0, id_renderer, key_image.clone(), diffuse_rgba, dimensions.0, dimensions.1, &device, &queue, &asset_textures, &asset_samplers);
-    Engine::spine_shader(&mut cmds.0, id_renderer, KeySpineShader::TwoColoredTextured);
-    Engine::spine_uniform(&mut cmds.0, id_renderer, &uniform_param);
-    Engine::spine_use_texture(&mut cmds.0, id_renderer, key_image.asset_u64());
-    Engine::spine_draw(
+    let key_image = "../wanzhuqian.png";
+    SpineAPI::spine_texture(&mut cmds.0, id_renderer, key_image.clone(), diffuse_rgba, dimensions.0, dimensions.1, &device, &queue, &asset_textures, &asset_samplers);
+    SpineAPI::spine_shader(&mut cmds.0, id_renderer, KeySpineShader::TwoColoredTextured);
+    SpineAPI::spine_uniform(&mut cmds.0, id_renderer, &uniform_param);
+    SpineAPI::spine_use_texture(&mut cmds.0, id_renderer, key_image.asset_u64());
+    SpineAPI::spine_draw(
         &mut cmds.0, 
         id_renderer,
         &VERTICES.as_slice()[0..9636],
@@ -100,6 +105,7 @@ pub fn run() -> Engine {
 		.add_plugin(WinitPlugin::default())
 		// .add_plugin(WorldInspectorPlugin::new())
 		.add_plugin(PiRenderPlugin::default())
+		.add_plugin(PluginFinalRender::default())
 		.add_plugin(PluginSpineRenderer::default())
         .add_startup_system(runner)
         ;

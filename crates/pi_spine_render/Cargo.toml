@@ -31,6 +31,8 @@ naga = { version = "0.10", features = [
 ] }
 bytemuck = { version = "1.4", features = ["derive"] }
 
+wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
+
 pi_slotmap = "0.1"
 pi_map = "0.1"
 pi_hash = "0.1"
@@ -51,6 +53,7 @@ bevy = { version="0.9", default-features = false, features=["bevy_winit"] }
 pi_bevy_render_plugin = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
 pi_bevy_asset = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
 pi_bevy_ecs_extend = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
+pi_final_render_target = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
 
 pi_render = { git = "https://github.com/GaiaWorld/pi_render", branch="bevy_shader" }
 render_utils = { git = "https://github.com/GaiaWorld/pi_render", branch="bevy_shader" }
@@ -67,5 +70,6 @@ render_derive = { path = "../../../pi_render/crates/render_derive" }
 pi_bevy_render_plugin = { path = "../../../pi_render_bevy/crates/render" }
 pi_bevy_asset = { path = "../../../pi_render_bevy/crates/asset" }
 pi_bevy_ecs_extend = { path = "../../../pi_render_bevy/crates/ecs_extend" }
+pi_final_render_target = { path = "../../../pi_render_bevy/crates/final_render_target" }
 
 # [[example]]

@@ -7,11 +7,13 @@ use pi_assets::{mgr::AssetMgr, asset::{Handle, GarbageEmpty}};
 use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
 use pi_bevy_render_plugin::{PiRenderDevice, PiRenderQueue, node::Node, PiSafeAtlasAllocator, SimpleInOut, PiScreenTexture, PiClearOptions, PiRenderGraph};
+use pi_final_render_target::FinalRenderTarget;
 use pi_hash::XHashMap;
 use pi_render::{rhi::{sampler::{SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}, asset::TextureRes}, asset::TAssetKeyU64, renderer::{sampler::SamplerRes, draw_obj_list::DrawList}, components::view::target_alloc::{ShareTargetView, TargetDescriptor, TextureDescriptor}};
 use renderer::{RendererAsync, SpineResource};
 use shaders::KeySpineShader;
 use smallvec::SmallVec;
+use wasm_bindgen::prelude::wasm_bindgen;
 
 
 pub mod binds;
@@ -35,6 +37,7 @@ const SAMPLER_DESC: SamplerDesc = SamplerDesc {
 };
 
 #[derive(Debug, Clone, Copy)]
+#[wasm_bindgen]
 pub struct KeySpineRenderer(pub(crate) u32);
 
 pub struct SpineRenderNodeParam {
@@ -50,7 +53,7 @@ impl Node for SpineRenderNode {
 
     type Output = SimpleInOut;
 
-    type Param = Res<'static, PiScreenTexture>;
+    type Param = Res<'static, FinalRenderTarget>;
 
     fn run<'a>(
         &'a mut self,
@@ -145,33 +148,34 @@ impl Node for SpineRenderNode {
             })
         } else {
             let screen = param.get(world);
-            let view = screen.0.as_ref().unwrap().view.as_ref().unwrap().clone();
 
             Box::pin(async move {
-                let mut encoder = commands.0.as_ref().borrow_mut();
-                let mut renderpass = encoder.begin_render_pass(
-                    &wgpu::RenderPassDescriptor {
-                        label: None,
-                        color_attachments: &[
-                            Some(
-                                wgpu::RenderPassColorAttachment {
-                                    view: &view,
-                                    resolve_target: None,
-                                    ops: wgpu::Operations {
-                                        load: wgpu::LoadOp::Load,
-                                        store: true,
+                if let Some(view) = screen.view() {
+                    let mut encoder = commands.0.as_ref().borrow_mut();
+                    let mut renderpass = encoder.begin_render_pass(
+                        &wgpu::RenderPassDescriptor {
+                            label: None,
+                            color_attachments: &[
+                                Some(
+                                    wgpu::RenderPassColorAttachment {
+                                        view: &view,
+                                        resolve_target: None,
+                                        ops: wgpu::Operations {
+                                            load: wgpu::LoadOp::Load,
+                                            store: true,
+                                        }
                                     }
-                                }
-                            )
-                        ],
-                        depth_stencil_attachment: None,
-                    }
-                );
-                
-                // renderpass.set_viewport(x, y, w, h, min_depth, max_depth);
-                // renderpass.set_scissor_rect(x as u32, y as u32, w as u32, h as u32);
-                log::info!("Draws: {:?}", renderer.render.drawobjs.list.len());
-                DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
+                                )
+                            ],
+                            depth_stencil_attachment: None,
+                        }
+                    );
+                    
+                    // renderpass.set_viewport(x, y, w, h, min_depth, max_depth);
+                    // renderpass.set_scissor_rect(x as u32, y as u32, w as u32, h as u32);
+                    log::info!("Draws: {:?}", renderer.render.drawobjs.list.len());
+                    DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
+                }
 
                 Ok(SimpleInOut { target: None })
             })
@@ -316,12 +320,13 @@ impl SysSpineRendererApply {
 //     fn spine_texture(&mut self, id_renderer: KeySpineRenderer, key: Atom, data: &[u8], width: u32, height: u32) -> &mut Self;
 // }
 
-pub trait TInterfaceSpine: pi_bevy_ecs_extend::TShell {
+pub trait TInterfaceSpine {
     fn create_spine_renderer(
         name: Atom,
-        next_node: Option<Atom>,
+        next_node: Option<(Atom, wgpu::TextureFormat)>,
         ctx: &mut SpineRenderContext,
         render_graph: &mut PiRenderGraph,
+        final_render: &FinalRenderTarget,
     ) -> KeySpineRenderer {
         
         let id = ctx.create_renderer(next_node.is_none());
@@ -330,10 +335,12 @@ pub trait TInterfaceSpine: pi_bevy_ecs_extend::TShell {
         match render_graph.add_node(key.clone(), SpineRenderNode(id)) {
             Ok(v) => {
                 if let Some(next_node) = next_node {
-                    render_graph.add_depend(key, String::from(next_node.as_str()));
-                    ctx.list.get_mut(&id.0).unwrap().render.target_format = wgpu::TextureFormat::Rgba8UnormSrgb;
+                    render_graph.add_depend(key, String::from(next_node.0.as_str()));
+                    ctx.list.get_mut(&id.0).unwrap().render.target_format = next_node.1;
                 } else {
-                    render_graph.set_finish(key, true);
+                    render_graph.add_depend(FinalRenderTarget::CLEAR_KEY, key.clone());
+                    render_graph.add_depend(key, FinalRenderTarget::KEY);
+                    ctx.list.get_mut(&id.0).unwrap().render.target_format = final_render.format();
                 }
         
                 render_graph.dump_graphviz();
@@ -391,7 +398,7 @@ pub trait TInterfaceSpine: pi_bevy_ecs_extend::TShell {
     fn spine_texture(
         cmds: &mut Vec<ESpineCommand>,
         id_renderer: KeySpineRenderer,
-        key: Atom,
+        key: &str,
         data: &[u8],
         width: u32,
         height: u32,
@@ -480,6 +487,23 @@ pub trait TInterfaceSpine: pi_bevy_ecs_extend::TShell {
         id_renderer: KeySpineRenderer,
     ) {
         cmds.push(ESpineCommand::Reset(id_renderer));
+    }
+
+    fn spine_blend(
+        cmds: &mut Vec<ESpineCommand>,
+        id_renderer: KeySpineRenderer,
+        value: bool,
+    ) {
+        cmds.push(ESpineCommand::Blend(id_renderer, value));
+    }
+
+    fn spine_blend_mode(
+        cmds: &mut Vec<ESpineCommand>,
+        id_renderer: KeySpineRenderer,
+        src: wgpu::BlendFactor,
+        dst: wgpu::BlendFactor,
+    ) {
+        cmds.push(ESpineCommand::BlendMode(id_renderer, src, dst));
     }
 }
 

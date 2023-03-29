@@ -6,6 +6,7 @@ use pi_assets::{asset::{Asset, Handle, GarbageEmpty}, mgr::AssetMgr};
 use pi_hash::DefaultHasher;
 use pi_render::{renderer::{shader::{TShaderSetBlock, Shader, KeyShader, KeyShaderMeta, KeyShaderSetBlocks}, attributes::{KeyShaderFromAttributes, EVertexDataKind, VertexAttribute}, vertex_buffer::{VertexBufferLayouts, VertexBufferLayout, KeyVertexBuffer}, vertex_buffer_desc::VertexBufferDesc, instance::EInstanceKind, pipeline::KeyRenderPipelineState}, rhi::{device::RenderDevice, asset::RenderRes, pipeline::RenderPipeline, RenderQueue, bind_group_layout::BindGroupLayout}, asset::ASSET_SIZE_FOR_UNKOWN};
 use pi_share::Share;
+use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::binds::param::BindParam;
 
@@ -16,6 +17,7 @@ pub enum EKeySpineSet {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[wasm_bindgen]
 pub enum KeySpineShader {
     Colored,
     ColoredTextured,
