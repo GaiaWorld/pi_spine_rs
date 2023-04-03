@@ -1,7 +1,7 @@
 
 use std::{mem::replace, num::NonZeroU32};
 
-use bevy::prelude::{ResMut, Resource, App, Plugin, Res, CoreStage};
+use bevy::prelude::{ResMut, Resource, App, Plugin, Res, IntoSystemConfig};
 use futures::FutureExt;
 use pi_assets::{mgr::AssetMgr, asset::{Handle, GarbageEmpty}};
 use pi_atom::Atom;
@@ -222,91 +222,85 @@ pub enum ESpineCommand {
 #[derive(Resource, Default)]
 pub struct SingleSpineCommands(pub Vec<ESpineCommand>);
 
-pub struct SysSpineCommands;
-impl SysSpineCommands {
-    fn sys(
-        mut cmds: ResMut<SingleSpineCommands>,
-        mut clearopt: ResMut<PiClearOptions>,
-        mut renderers: ResMut<SpineRenderContext>,
+pub fn sys_spine_cmds(
+    mut cmds: ResMut<SingleSpineCommands>,
+    mut clearopt: ResMut<PiClearOptions>,
+    mut renderers: ResMut<SpineRenderContext>,
     ) {
-        clearopt.color.g = 0.;
-        let mut list = replace(&mut cmds.0, vec![]);
-        list.drain(..).for_each(|cmd| {
-            match cmd {
-                ESpineCommand::Uniform(id, val) => {
-                    if let Some(renderer) = renderers.list.get_mut(&id.0) {
-                        // log::warn!("Cmd: Uniform");
-                        renderer.render.uniform(val);
-                    }
-                },
-                ESpineCommand::Shader(id, val) => {
-                    if let Some(renderer) = renderers.list.get_mut(&id.0) {
-                        // log::warn!("Cmd: Shader");
-                        renderer.render.shader(val);
-                    }
-                },
-                ESpineCommand::UseTexture(id, val) => {
-                    if let Some(renderer) = renderers.list.get_mut(&id.0) {
-                        let samplerdesc = SAMPLER_DESC.clone();
-                        // log::warn!("Cmd: UseTexture");
-                        renderer.render.texture(val, Some(samplerdesc));
-                    }
-                },
-                ESpineCommand::Draw(id, vertices, indices, vlen, ilen) => {
-                    if let Some(renderer) = renderers.list.get_mut(&id.0) {
-                        // log::warn!("Cmd: Draw");
-                        renderer.render.draw(vertices, Some(indices), vlen, ilen);
-                    }
-                },
-                ESpineCommand::Texture(id, key, value, key2, value2) => {
-                    if let Some(renderer) = renderers.list.get_mut(&id.0) {
-                        // log::warn!("Cmd: Texture");
-                        renderer.render.textures.insert(key, value);
-                        renderer.render.samplers.insert(key2, value2);
-                    }
-                },
-                ESpineCommand::RenderSize(id, width, height) => {
-                    if let Some(renderer) = renderers.list.get_mut(&id.0) {
-                        renderer.width = width;
-                        renderer.height = height;
-                    }
-                },
-                ESpineCommand::Reset(id) => {
-                    if let Some(renderer) = renderers.list.get_mut(&id.0) {
-                        renderer.render.reset();
-                    }
-                },
-                ESpineCommand::Blend(id, val) => {
-                    if let Some(renderer) = renderers.list.get_mut(&id.0) {
-                        renderer.render.blend(val);
-                    }
+    clearopt.color.g = 0.;
+    let mut list = replace(&mut cmds.0, vec![]);
+    list.drain(..).for_each(|cmd| {
+        match cmd {
+            ESpineCommand::Uniform(id, val) => {
+                if let Some(renderer) = renderers.list.get_mut(&id.0) {
+                    // log::warn!("Cmd: Uniform");
+                    renderer.render.uniform(val);
                 }
-                ,
-                ESpineCommand::BlendMode(id, val0, val1) => {
-                    if let Some(renderer) = renderers.list.get_mut(&id.0) {
-                        renderer.render.blend_mode(val0, val1);
-                    }
-                },
+            },
+            ESpineCommand::Shader(id, val) => {
+                if let Some(renderer) = renderers.list.get_mut(&id.0) {
+                    // log::warn!("Cmd: Shader");
+                    renderer.render.shader(val);
+                }
+            },
+            ESpineCommand::UseTexture(id, val) => {
+                if let Some(renderer) = renderers.list.get_mut(&id.0) {
+                    let samplerdesc = SAMPLER_DESC.clone();
+                    // log::warn!("Cmd: UseTexture");
+                    renderer.render.texture(val, Some(samplerdesc));
+                }
+            },
+            ESpineCommand::Draw(id, vertices, indices, vlen, ilen) => {
+                if let Some(renderer) = renderers.list.get_mut(&id.0) {
+                    // log::warn!("Cmd: Draw");
+                    renderer.render.draw(vertices, Some(indices), vlen, ilen);
+                }
+            },
+            ESpineCommand::Texture(id, key, value, key2, value2) => {
+                if let Some(renderer) = renderers.list.get_mut(&id.0) {
+                    // log::warn!("Cmd: Texture");
+                    renderer.render.textures.insert(key, value);
+                    renderer.render.samplers.insert(key2, value2);
+                }
+            },
+            ESpineCommand::RenderSize(id, width, height) => {
+                if let Some(renderer) = renderers.list.get_mut(&id.0) {
+                    renderer.width = width;
+                    renderer.height = height;
+                }
+            },
+            ESpineCommand::Reset(id) => {
+                if let Some(renderer) = renderers.list.get_mut(&id.0) {
+                    renderer.render.reset();
+                }
+            },
+            ESpineCommand::Blend(id, val) => {
+                if let Some(renderer) = renderers.list.get_mut(&id.0) {
+                    renderer.render.blend(val);
+                }
             }
-        })
-    }
+            ,
+            ESpineCommand::BlendMode(id, val0, val1) => {
+                if let Some(renderer) = renderers.list.get_mut(&id.0) {
+                    renderer.render.blend_mode(val0, val1);
+                }
+            },
+        }
+    })
 }
 
-pub struct SysSpineRendererApply;
-impl SysSpineRendererApply {
-    fn sys(
-        mut renderers: ResMut<SpineRenderContext>,
-        mut resource: ResMut<SpineResource>,
-        device: Res<PiRenderDevice>,
-        queue: Res<PiRenderQueue>,
-        asset_samplers: Res<ShareAssetMgr<SamplerRes>>,
-        asset_textures: Res<ShareAssetMgr<TextureRes>>,
-    ) {
-        // log::warn!("Apply: {:?}", renderers.list.len());
-        renderers.list.iter_mut().for_each(|(_, v)| {
-            v.render.drawlist(&device, &queue, &mut resource, &asset_samplers, &asset_textures);
-        })
-    }
+pub fn sys_spine_render_apply(
+    mut renderers: ResMut<SpineRenderContext>,
+    mut resource: ResMut<SpineResource>,
+    device: Res<PiRenderDevice>,
+    queue: Res<PiRenderQueue>,
+    asset_samplers: Res<ShareAssetMgr<SamplerRes>>,
+    asset_textures: Res<ShareAssetMgr<TextureRes>>,
+) {
+    // log::warn!("Apply: {:?}", renderers.list.len());
+    renderers.list.iter_mut().for_each(|(_, v)| {
+        v.render.drawlist(&device, &queue, &mut resource, &asset_samplers, &asset_textures);
+    })
 }
 
 // pub trait TInterfaceSpine: TShell {
@@ -424,6 +418,7 @@ pub trait TInterfaceSpine {
                 dimension: wgpu::TextureDimension::D2,
                 format: wgpu::TextureFormat::Rgba8UnormSrgb,
                 usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[wgpu::TextureFormat::Rgba8UnormSrgb]
             });
             queue.write_texture(
                 // Tells wgpu where to copy the pixel data
@@ -512,10 +507,10 @@ pub struct PluginSpineRenderer;
 impl Plugin for PluginSpineRenderer {
     fn build(&self, app: &mut App) {
         if app.world.get_resource::<ShareAssetMgr<SamplerRes>>().is_none() {
-            app.insert_resource(ShareAssetMgr(AssetMgr::<SamplerRes>::new(GarbageEmpty(), false, 32 * 1024, 30 * 1000)));
+            app.insert_resource(ShareAssetMgr::<SamplerRes>::new(GarbageEmpty(), false, 32 * 1024, 30 * 1000));
         }
         if app.world.get_resource::<ShareAssetMgr<TextureRes>>().is_none() {
-            app.insert_resource(ShareAssetMgr(AssetMgr::<TextureRes>::new(GarbageEmpty(), false, 32 * 1024 * 1024, 30 * 1000)));
+            app.insert_resource(ShareAssetMgr::<TextureRes>::new(GarbageEmpty(), false, 32 * 1024 * 1024, 30 * 1000));
         }
         
         let device = app.world.get_resource::<PiRenderDevice>().unwrap().0.clone();
@@ -523,8 +518,10 @@ impl Plugin for PluginSpineRenderer {
             .insert_resource(SpineResource::new(&device))
             .insert_resource(SpineRenderContext::new());
 
-        app.add_system_to_stage(CoreStage::First, SysSpineCommands::sys);
-        app.add_system_to_stage(CoreStage::Update, SysSpineRendererApply::sys);
+        app.add_systems((
+            sys_spine_cmds.before(sys_spine_render_apply),
+            sys_spine_render_apply
+        ));
 
         log::warn!("PluginSpineRenderer");
     }

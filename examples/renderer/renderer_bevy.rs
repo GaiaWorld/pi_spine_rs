@@ -92,23 +92,25 @@ pub fn run() -> Engine {
     let mut app = App::default();
 
 	let mut window_plugin = bevy::window::WindowPlugin::default();
-	window_plugin.window.width = 800 as f32;
-	window_plugin.window.height = 600 as f32;
+    if let Some(primary_window) = &mut window_plugin.primary_window {
+        primary_window.resolution.set_physical_resolution(800, 600);
+    }
 	
-	app
+	// app
 		// .add_plugin(bevy::log::LogPlugin {
 		// 	filter: "wgpu=info,pi_ui_render::components::user=debug".to_string(),
 		// 	level: bevy::log::Level::INFO,
 		// })
-		.add_plugin(bevy::input::InputPlugin::default())
-		.add_plugin(window_plugin)
-		.add_plugin(WinitPlugin::default())
+		app.add_plugin(bevy::input::InputPlugin::default());
+		app.add_plugin(window_plugin);
+        app.add_plugin(bevy::a11y::AccessibilityPlugin);
+		app.add_plugin(WinitPlugin::default());
 		// .add_plugin(WorldInspectorPlugin::new())
-		.add_plugin(PiRenderPlugin::default())
-		.add_plugin(PluginFinalRender::default())
-		.add_plugin(PluginSpineRenderer::default())
-        .add_startup_system(runner)
-        ;
+		app.add_plugin(PiRenderPlugin::default());
+		app.add_plugin(PluginFinalRender::default());
+		app.add_plugin(PluginSpineRenderer::default());
+        app.add_startup_system(runner);
+        // ;
 
     // let rendergraph = app.world.get_resource::<PiRenderGraph>().unwrap();
     // rendergraph.in

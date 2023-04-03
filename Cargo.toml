@@ -23,7 +23,7 @@ pi_bevy_asset = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
 pi_bevy_ecs_extend = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
 pi_final_render_target = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
 
-bevy = { version="0.9", default-features = false, features=["bevy_winit"] }
+bevy = { version="0.10", default-features = false, features=["bevy_winit"] }
 pi_scene_math = { git = "https://github.com/GaiaWorld/pi_scene" }
 pi_animation = { git = "https://github.com/GaiaWorld/pi_animation.git" }
 pi_curves = { git = "https://github.com/GaiaWorld/pi_curves.git" }
@@ -32,22 +32,16 @@ pi_map = "0.1"
 pi_hash = "0.1"
 pi_assets = "0.10"
 pi_share = "0.4"
-pi_ecs_macros = { git = "https://github.com/GaiaWorld/pi_ecs.git" }
-pi_ecs_utils = { git = "https://github.com/GaiaWorld/pi_ecs_utils.git" }
-pi_ecs = { git = "https://github.com/GaiaWorld/pi_ecs.git" }
 pi_atom = { version="0.2", features = ["serde"] }
 pi_hal = { git = "https://github.com/GaiaWorld/pi_hal.git" }
 
-wgpu = "0.14"
+wgpu = "0.15"
 env_logger = "0.9"
 log = "0.4"
 smallvec = "1.9"
 crossbeam="0.8"
 futures = "0.3"
 winit = { git = "http://ser.yinengyun.com:10082/tech/winit.git" }
-
-[patch."https://github.com/GaiaWorld/pi_ecs"]
-pi_ecs = { path = "../pi_ecs" }
 
 [patch."https://github.com/GaiaWorld/pi_hal"]
 pi_hal = { path = "../pi_hal" }
