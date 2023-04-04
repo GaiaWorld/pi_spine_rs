@@ -5,7 +5,7 @@ use pi_bevy_asset::ShareAssetMgr;
 use pi_bevy_ecs_extend::TShell;
 use pi_bevy_render_plugin::{PiRenderPlugin, PiRenderGraph, PiRenderDevice, PiRenderQueue};
 use pi_final_render_target::{PluginFinalRender, FinalRenderTarget};
-use pi_render::{asset::TAssetKeyU64, rhi::asset::TextureRes, renderer::sampler::SamplerRes};
+use pi_render::{asset::TAssetKeyU64, rhi::{asset::TextureRes, sampler::SamplerDesc}, renderer::sampler::SamplerRes};
 use pi_scene_math::{Vector4, Matrix};
 use pi_spine_rs::{PluginSpineRenderer, TInterfaceSpine, shaders::KeySpineShader, SpineRenderContext, ecs::{ResMut, Res}, SingleSpineCommands};
 
@@ -51,12 +51,27 @@ fn runner(
         uniform_param.push(*v);
     });
     uniform_param.push(1.);
+    
+    let samplerdesc = SamplerDesc::linear_default();
+    let sampler = if let Some(sampler) = asset_samplers.get(&samplerdesc) {
+        sampler
+    } else {
+        if let Some(sampler) = asset_samplers.insert(samplerdesc.clone(), SamplerRes::new(&device, &samplerdesc)) {
+            sampler
+        } else {
+            return;
+        }
+    };
+    if let Some(renderer) = ctx.get_mut(id_renderer) {
+        // log::warn!("Cmd: Texture");
+        renderer.render_mut().record_sampler(samplerdesc, sampler);
+    }
 
     let key_image = "../wanzhuqian.png";
     SpineAPI::spine_texture(&mut cmds.0, id_renderer, key_image.clone(), diffuse_rgba, dimensions.0, dimensions.1, &device, &queue, &asset_textures, &asset_samplers);
     SpineAPI::spine_shader(&mut cmds.0, id_renderer, KeySpineShader::TwoColoredTextured);
     SpineAPI::spine_uniform(&mut cmds.0, id_renderer, &uniform_param);
-    SpineAPI::spine_use_texture(&mut cmds.0, id_renderer, key_image.asset_u64());
+    SpineAPI::spine_use_texture(&mut cmds.0, id_renderer, key_image.asset_u64(), SamplerDesc::linear_default());
     SpineAPI::spine_draw(
         &mut cmds.0, 
         id_renderer,
