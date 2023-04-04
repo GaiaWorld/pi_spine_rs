@@ -24,7 +24,7 @@ pub mod renderer;
 pub mod ecs;
 
 pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
-const SAMPLER_DESC: SamplerDesc = SamplerDesc {
+pub const SAMPLER_DESC: SamplerDesc = SamplerDesc {
     address_mode_u: EAddressMode::Repeat,
     address_mode_v: EAddressMode::Repeat,
     address_mode_w: EAddressMode::Repeat,
@@ -46,8 +46,13 @@ pub struct SpineRenderNodeParam {
     height: u32,
     screen: bool,
 }
+impl SpineRenderNodeParam {
+    pub fn render_mut(&mut self) -> &mut RendererAsync {
+        &mut self.render
+    }
+}
 
-pub struct SpineRenderNode(KeySpineRenderer);
+pub struct SpineRenderNode(pub KeySpineRenderer);
 impl Node for SpineRenderNode {
     type Input = ();
 
@@ -193,6 +198,9 @@ impl SpineRenderContext {
     pub fn new() -> Self {
         Self { counter: 0, list: XHashMap::default() }
     }
+    pub fn get_mut(&mut self, key: KeySpineRenderer) -> Option<&mut SpineRenderNodeParam> {
+        self.list.get_mut(&key.0)
+    }
     pub fn create_renderer(&mut self, screen: bool) -> KeySpineRenderer {
         self.counter += 1;
         let id = self.counter;
@@ -209,7 +217,7 @@ pub enum ESpineCommand {
     Reset(KeySpineRenderer),
     RenderSize(KeySpineRenderer, u32, u32),
     Shader(KeySpineRenderer, Option<KeySpineShader>),
-    UseTexture(KeySpineRenderer, Option<u64>),
+    UseTexture(KeySpineRenderer, Option<u64>, Option<SamplerDesc>),
     Texture(KeySpineRenderer, u64, Handle<TextureRes>, SamplerDesc, Handle<SamplerRes>),
     Blend(KeySpineRenderer, bool),
     BlendMode(KeySpineRenderer, wgpu::BlendFactor, wgpu::BlendFactor),
@@ -243,11 +251,10 @@ pub fn sys_spine_cmds(
                     renderer.render.shader(val);
                 }
             },
-            ESpineCommand::UseTexture(id, val) => {
+            ESpineCommand::UseTexture(id, val, sampler) => {
                 if let Some(renderer) = renderers.list.get_mut(&id.0) {
-                    let samplerdesc = SAMPLER_DESC.clone();
                     // log::warn!("Cmd: UseTexture");
-                    renderer.render.texture(val, Some(samplerdesc));
+                    renderer.render.texture(val, sampler);
                 }
             },
             ESpineCommand::Draw(id, vertices, indices, vlen, ilen) => {
@@ -374,8 +381,9 @@ pub trait TInterfaceSpine {
         cmds: &mut Vec<ESpineCommand>,
         id_renderer: KeySpineRenderer,
         value: u64,
+        sampler: SamplerDesc,
     ) {
-        cmds.push(ESpineCommand::UseTexture(id_renderer, Some(value)));
+        cmds.push(ESpineCommand::UseTexture(id_renderer, Some(value), Some(sampler)));
     }
 
     fn spine_draw(

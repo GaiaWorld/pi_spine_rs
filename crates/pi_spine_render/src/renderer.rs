@@ -257,7 +257,7 @@ pub struct RendererAsync {
     uniform_param: Vec<Vec<f32>>,
     texture: Option<u64>,
     sampler: Option<SamplerDesc>,
-    pub(crate) target_format: wgpu::TextureFormat,
+    pub target_format: wgpu::TextureFormat,
 }
 impl RendererAsync {
     pub fn new() -> Self {
@@ -434,6 +434,29 @@ impl RendererAsync {
     ) {
         self.texture = texture;
         self.sampler = sampler;
+    }
+
+    pub fn record_texture(
+        &mut self,
+        key_texture: u64,
+        texture: Handle<TextureRes>,
+    ) {
+        self.textures.insert(key_texture, texture);
+    }
+
+    pub fn record_sampler(
+        &mut self,
+        key_sampler: SamplerDesc,
+        sampler: Handle<SamplerRes>,
+    ) {
+        self.samplers.insert(key_sampler, sampler);
+    }
+
+    pub fn remove_texture(
+        &mut self,
+        key_texture: u64,
+    ) {
+        self.textures.remove(&key_texture);
     }
 
     pub fn draw(
