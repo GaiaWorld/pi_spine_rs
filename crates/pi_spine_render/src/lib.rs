@@ -325,33 +325,39 @@ pub fn sys_spine_render_apply(
 pub struct ActionSpine;
 impl ActionSpine {
     pub fn create_spine_renderer(
-        entity_commands: &mut EntityCommands,
         id: KeySpineRenderer,
-        name: Atom,
         rendersize: Option<(u32, u32)>,
         ctx: &mut SpineRenderContext,
-        render_graph: &mut PiRenderGraph,
-        final_render: &FinalRenderTarget,
-    ) -> Result<NodeId, GraphError> {
+        final_render_format: wgpu::TextureFormat,
+    ) {
         ctx.create_renderer(id, rendersize.is_none());
+        match rendersize {
+            Some(rendersize) => {
+                ctx.list.get_mut(&id).unwrap().render.target_format = wgpu::TextureFormat::Rgba8UnormSrgb;
+                ctx.list.get_mut(&id).unwrap().width = rendersize.0;
+                ctx.list.get_mut(&id).unwrap().height = rendersize.1;
+            },
+            None => {
+                ctx.list.get_mut(&id).unwrap().render.target_format = final_render_format;
+            },
+        }
+    }
 
-
+    pub fn spine_renderer_apply(
+        id: KeySpineRenderer,
+        name: Atom,
+        to_screen: bool,
+        render_graph: &mut PiRenderGraph,
+    ) -> Result<NodeId, GraphError> {
         let key = String::from(name.as_str());
         match render_graph.add_node(key.clone(), SpineRenderNode(id)) {
             Ok(v) => {
-                if let Some(rendersize) = rendersize {
-                    // render_graph.add_depend(key, String::from(next_node.0.as_str()));
-                    ctx.list.get_mut(&id).unwrap().render.target_format = wgpu::TextureFormat::Rgba8UnormSrgb;
-                    ctx.list.get_mut(&id).unwrap().width = rendersize.0;
-                    ctx.list.get_mut(&id).unwrap().height = rendersize.1;
-                } else {
+                if to_screen {
                     render_graph.add_depend(FinalRenderTarget::CLEAR_KEY, key.clone());
                     render_graph.add_depend(key, FinalRenderTarget::KEY);
-                    ctx.list.get_mut(&id).unwrap().render.target_format = final_render.format();
                 }
         
                 render_graph.dump_graphviz();
-                entity_commands.insert(pi_bevy_render_plugin::component::GraphId(v));
                 Ok(v)
             },
             Err(e) => {
@@ -361,11 +367,9 @@ impl ActionSpine {
     }
 
     pub fn dispose_spine_renderer(
-        entity_commands: &mut EntityCommands,
         id_renderer: KeySpineRenderer,
         ctx: &mut SpineRenderContext,
     ) {
-        entity_commands.despawn();
         ctx.list.remove(&id_renderer);
     }
 

@@ -24,8 +24,12 @@ fn runner(
 ) {
     let mut entitycmd = commands.spawn_empty();
     let id_renderer = KeySpineRenderer(entitycmd.id());
-    match ActionSpine::create_spine_renderer(&mut entitycmd, id_renderer, Atom::from("TestSpine"), None, &mut ctx, &mut render_graph, &final_render) {
-        Ok(nodeid) => {
+    ActionSpine::create_spine_renderer(id_renderer, None, &mut ctx, final_render.format());
+
+    match ActionSpine::spine_renderer_apply(id_renderer, Atom::from("TestSpine"), true,  &mut render_graph) {
+        Ok(nodeid) => { 
+            entitycmd.insert(pi_bevy_render_plugin::component::GraphId(nodeid));
+
             //// Texture
             let diffuse_bytes = include_bytes!("../wanzhuqian.png");
             let diffuse_image = image::load_from_memory(diffuse_bytes).unwrap();
