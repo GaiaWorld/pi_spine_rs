@@ -182,7 +182,7 @@ impl Node for SpineRenderNode {
                     
                     // renderpass.set_viewport(x, y, w, h, min_depth, max_depth);
                     // renderpass.set_scissor_rect(x as u32, y as u32, w as u32, h as u32);
-                    log::info!("Draws: {:?}", renderer.render.drawobjs.list.len());
+                    log::warn!("Draws: {:?}", renderer.render.drawobjs.list.len());
                     DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
                 }
 

@@ -3,8 +3,22 @@ use std::{ops::Range, sync::Arc};
 use bevy::prelude::{Resource};
 use pi_assets::{asset::{Handle, GarbageEmpty}, mgr::AssetMgr};
 use pi_hash::XHashMap;
-use pi_map::vecmap::VecMap;
-use pi_render::{renderer::{draw_obj::{DrawObj, DrawBindGroups, DrawBindGroup}, sampler::SamplerRes, pipeline::KeyRenderPipelineState, vertices::{RenderVertices, EVerticesBufferUsage, RenderIndices}, draw_obj_list::DrawList, vertex_buffer::VertexBufferAllocator, texture::image_texture::KeyImageTexture}, rhi::{asset::{TextureRes, RenderRes}, device::RenderDevice, RenderQueue, bind_group::BindGroup, PrimitiveState, sampler::SamplerDesc}, asset::TAssetKeyU64};
+use pi_map::{vecmap::VecMap, smallvecmap::SmallVecMap};
+use pi_render::{
+    renderer::{
+        draw_obj::{DrawObj, DrawBindGroups, DrawBindGroup},
+        sampler::SamplerRes,
+        pipeline::KeyRenderPipelineState,
+        vertices::{RenderVertices, EVerticesBufferUsage, RenderIndices},
+        draw_obj_list::DrawList, vertex_buffer::VertexBufferAllocator,
+        texture::*
+    },
+    rhi::{
+        asset::{TextureRes, RenderRes},
+        device::RenderDevice, RenderQueue, bind_group::BindGroup, PrimitiveState,
+        sampler::SamplerDesc
+    }, asset::TAssetKeyU64
+};
 use pi_share::Share;
 
 use crate::{shaders::{KeySpineShader, KeySpinePipeline, SingleSpinePipelinePool, SingleSpineBindGroupLayout}, binds::param::{BindBufferAllocator, SpineBindBufferUsage}, bind_groups::SpineBindGroup, FORMAT};
@@ -119,7 +133,7 @@ impl Renderer {
         let (vb, bindgroup) = match shader {
             KeySpineShader::Colored => {
                 let vb = if let Some(vb) = vb_allocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(vertices)) {
-                    let mut result = VecMap::default();
+                    let mut result = SmallVecMap::default();
                     result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(Arc::new(vb)), buffer_range: Some(Range { start: 0, end: (vertices_len * 4) as u64  }), size_per_value: shader.vertices_bytes_per_element() as u64 });
                     result
                 } else {
@@ -130,7 +144,7 @@ impl Renderer {
             },
             KeySpineShader::ColoredTextured => {
                 let vb = if let Some(vb) = vb_allocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(vertices)) {
-                    let mut result = VecMap::default();
+                    let mut result = SmallVecMap::default();
                     result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(Arc::new(vb)), buffer_range: Some(Range { start: 0, end: (vertices_len * 4) as u64  }), size_per_value: shader.vertices_bytes_per_element() as u64 });
                     result
                 } else {
@@ -145,7 +159,7 @@ impl Renderer {
             },
             KeySpineShader::TwoColoredTextured => {
                 let vb = if let Some(vb) = vb_allocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(vertices)) {
-                    let mut result = VecMap::default();
+                    let mut result = SmallVecMap::default();
                     result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(Arc::new(vb)), buffer_range: Some(Range { start: 0, end: (vertices_len * 4) as u64  }), size_per_value: shader.vertices_bytes_per_element() as u64 });
                     result
                 } else {
@@ -309,7 +323,7 @@ impl RendererAsync {
             let (vb, bindgroup) = match &draw.shader {
                 KeySpineShader::Colored => {
                     let vb = if let Some(vb) = resource.vballocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(&draw.vertices)) {
-                        let mut result = VecMap::default();
+                        let mut result = SmallVecMap::default();
                         result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(Arc::new(vb)), buffer_range: Some(Range { start: 0, end: (draw.verticeslen * 4) as u64  }), size_per_value: draw.shader.vertices_bytes_per_element() as u64 });
                         result
                     } else {
@@ -321,7 +335,7 @@ impl RendererAsync {
                 },
                 KeySpineShader::ColoredTextured => {
                     let vb = if let Some(vb) = resource.vballocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(&draw.vertices)) {
-                        let mut result = VecMap::default();
+                        let mut result = SmallVecMap::default();
                         result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(Arc::new(vb)), buffer_range: Some(Range { start: 0, end: (draw.verticeslen * 4) as u64  }), size_per_value: draw.shader.vertices_bytes_per_element() as u64 });
                         result
                     } else {
@@ -338,7 +352,7 @@ impl RendererAsync {
                 },
                 KeySpineShader::TwoColoredTextured => {
                     let vb = if let Some(vb) = resource.vballocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(&draw.vertices)) {
-                        let mut result = VecMap::default();
+                        let mut result = SmallVecMap::default();
                         result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(Arc::new(vb)), buffer_range: Some(Range { start: 0, end: (draw.verticeslen * 4) as u64  }), size_per_value: draw.shader.vertices_bytes_per_element() as u64 });
                         result
                     } else {
