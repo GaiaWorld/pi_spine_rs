@@ -47,7 +47,7 @@ impl BindBufferAllocator {
                 list: self.list.clone(),
             };
             queue.write_buffer(&buffer.buffer, 0, data);
-            if let Some(buffer) = self.asset_mgr.insert(idx, buffer) {
+            if let Ok(buffer) = self.asset_mgr.insert(idx, buffer) {
                 Some(SpineBindBufferUsage(buffer))
             } else {
                 None

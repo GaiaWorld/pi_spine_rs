@@ -475,7 +475,7 @@ impl ActionSpine {
 
             let textureres = TextureRes::new(width, height, (width * height * 4) as usize, texture_view, true);
             
-            if let Some(texture) = asset_textures.insert(key_u64, textureres) {
+            if let Ok(texture) = asset_textures.insert(key_u64, textureres) {
                 texture
             } else {
                 return;
@@ -487,7 +487,7 @@ impl ActionSpine {
         let sampler = if let Some(sampler) = asset_samplers.get(&samplerdesc) {
             sampler
         } else {
-            if let Some(sampler) = asset_samplers.insert(samplerdesc.clone(), SamplerRes::new(&device, &samplerdesc)) {
+            if let Ok(sampler) = asset_samplers.insert(samplerdesc.clone(), SamplerRes::new(&device, &samplerdesc)) {
                 sampler
             } else {
                 return;

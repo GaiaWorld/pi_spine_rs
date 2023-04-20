@@ -261,7 +261,7 @@ impl SingleSpinePipelinePool {
             Some(pipeline)
         } else {
             let pipeline = self.pipeline(device, key);
-            self.asset_mgr.insert(key_u64, pipeline)
+            self.asset_mgr.insert(key_u64, pipeline).ok()
         }
     }
     fn pipeline(

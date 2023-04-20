@@ -18,7 +18,7 @@ futures = "0.3"
 
 parry3d = "0.9"
 lazy_static = "1.4"
-pi_spatialtree = { git = "https://github.com/GaiaWorld/pi_spatialtree.git" }
+pi_spatial = { git = "https://github.com/GaiaWorld/pi_spatial.git" }
 ncollide3d = "0.33"
 
 approx = "0.5"
@@ -39,7 +39,7 @@ pi_hash = "0.1"
 pi_share = "0.4"
 pi_graph = "0.1"
 pi_atom = { version="0.2", features = ["serde"] }
-pi_assets = "0.10"
+pi_assets = "0.11"
 pi_futures = "0.1"
 pi_async = "0.5.11"
 pi_slotmap_tree = "0.3"
