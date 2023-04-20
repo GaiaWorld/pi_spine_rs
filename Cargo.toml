@@ -23,7 +23,7 @@ pi_bevy_asset = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
 pi_bevy_ecs_extend = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
 pi_final_render_target = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
 
-bevy = { version="0.10", default-features = false, features=["bevy_winit"] }
+bevy = { version="0.10", default-features = false}
 pi_scene_math = { git = "https://github.com/GaiaWorld/pi_scene" }
 pi_animation = { git = "https://github.com/GaiaWorld/pi_animation.git" }
 pi_curves = { git = "https://github.com/GaiaWorld/pi_curves.git" }
