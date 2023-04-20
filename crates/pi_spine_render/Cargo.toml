@@ -16,10 +16,9 @@ smallvec = "1.9"
 crossbeam="0.8"
 futures = "0.3"
 
-parry3d = "0.9"
+parry3d = "0.13"
 lazy_static = "1.4"
 pi_spatial = { git = "https://github.com/GaiaWorld/pi_spatial.git" }
-ncollide3d = "0.33"
 
 approx = "0.5"
 naga = { version = "0.11", features = [
