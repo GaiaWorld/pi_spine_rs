@@ -1,15 +1,19 @@
 
 use std::{mem::{replace, transmute}, num::NonZeroU32};
 
-use bevy::{prelude::{ResMut, Resource, App, Plugin, Res, IntoSystemConfig, Entity}, ecs::system::EntityCommands};
+use bevy::{prelude::{ResMut, Resource, App, Plugin, Res, IntoSystemConfig, Entity, IntoSystemConfigs}, ecs::system::EntityCommands};
+use crossbeam::queue::SegQueue;
 use futures::FutureExt;
-use pi_assets::{mgr::AssetMgr, asset::{Handle, GarbageEmpty}};
+use pi_assets::{mgr::{AssetMgr, LoadResult}, asset::{Handle, GarbageEmpty}};
+use pi_async::prelude::AsyncRuntime;
 use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
 use pi_bevy_render_plugin::{PiRenderDevice, PiRenderQueue, node::Node, PiSafeAtlasAllocator, SimpleInOut, PiScreenTexture, PiClearOptions, PiRenderGraph, NodeId, GraphError};
-use pi_final_render_target::FinalRenderTarget;
+use pi_final_render_target::WindowRenderer;
+use pi_hal::{runtime::MULTI_MEDIA_RUNTIME, loader::AsyncLoader};
 use pi_hash::XHashMap;
-use pi_render::{rhi::{sampler::{SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}, asset::TextureRes}, asset::TAssetKeyU64, renderer::{sampler::SamplerRes, draw_obj_list::DrawList}, components::view::target_alloc::{ShareTargetView, TargetDescriptor, TextureDescriptor}};
+use pi_render::{rhi::{sampler::{SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}, asset::{TextureRes, ImageTextureDesc}, device}, asset::TAssetKeyU64, renderer::{sampler::SamplerRes, draw_obj_list::DrawList}, components::view::target_alloc::{ShareTargetView, TargetDescriptor, TextureDescriptor}};
+use pi_share::Share;
 use renderer::{RendererAsync, SpineResource};
 use shaders::KeySpineShader;
 use smallvec::SmallVec;
@@ -62,7 +66,7 @@ impl Node for SpineRenderNode {
 
     type Output = SimpleInOut;
 
-    type Param = Res<'static, FinalRenderTarget>;
+    type Param = Res<'static, WindowRenderer>;
 
     fn run<'a>(
         &'a mut self,
@@ -227,17 +231,15 @@ pub enum ESpineCommand {
 }
 
 
-
-#[derive(Resource, Default)]
-pub struct SingleSpineCommands(pub Vec<ESpineCommand>);
+pub type ActionListSpine = pi_bevy_ecs_extend::action::ActionList<ESpineCommand>;
 
 pub fn sys_spine_cmds(
-    mut cmds: ResMut<SingleSpineCommands>,
+    mut cmds: ResMut<ActionListSpine>,
     mut clearopt: ResMut<PiClearOptions>,
     mut renderers: ResMut<SpineRenderContext>,
     ) {
     clearopt.color.g = 0.;
-    let mut list = replace(&mut cmds.0, vec![]);
+    let mut list = cmds.drain();
     list.drain(..).for_each(|cmd| {
         match cmd {
             ESpineCommand::Uniform(id, val) => {
@@ -353,8 +355,8 @@ impl ActionSpine {
         match render_graph.add_node(key.clone(), SpineRenderNode(id)) {
             Ok(v) => {
                 if to_screen {
-                    render_graph.add_depend(FinalRenderTarget::CLEAR_KEY, key.clone());
-                    render_graph.add_depend(key, FinalRenderTarget::KEY);
+                    render_graph.add_depend(WindowRenderer::CLEAR_KEY, key.clone());
+                    render_graph.add_depend(key, WindowRenderer::KEY);
                 }
         
                 render_graph.dump_graphviz();
@@ -374,7 +376,7 @@ impl ActionSpine {
     }
 
     pub fn spine_uniform(
-        cmds: &mut Vec<ESpineCommand>,
+        cmds: &mut ActionListSpine,
         id_renderer: KeySpineRenderer,
         value: &[f32],
     ) {
@@ -382,7 +384,7 @@ impl ActionSpine {
     }
 
     pub fn spine_shader(
-        cmds: &mut Vec<ESpineCommand>,
+        cmds: &mut ActionListSpine,
         id_renderer: KeySpineRenderer,
         value: KeySpineShader,
     ) {
@@ -390,7 +392,7 @@ impl ActionSpine {
     }
 
     pub fn spine_use_texture(
-        cmds: &mut Vec<ESpineCommand>,
+        cmds: &mut ActionListSpine,
         id_renderer: KeySpineRenderer,
         value: u64,
         sampler: SamplerDesc,
@@ -399,7 +401,7 @@ impl ActionSpine {
     }
 
     pub fn spine_draw(
-        cmds: &mut Vec<ESpineCommand>,
+        cmds: &mut ActionListSpine,
         id_renderer: KeySpineRenderer,
         vertices: &[f32],
         indices: &[u16],
@@ -410,7 +412,7 @@ impl ActionSpine {
     }
 
     pub fn spine_texture(
-        cmds: &mut Vec<ESpineCommand>,
+        cmds: &mut ActionListSpine,
         id_renderer: KeySpineRenderer,
         key: &str,
         data: &[u8],
@@ -498,14 +500,14 @@ impl ActionSpine {
     }
 
     pub fn spine_reset(
-        cmds: &mut Vec<ESpineCommand>,
+        cmds: &mut ActionListSpine,
         id_renderer: KeySpineRenderer,
     ) {
         cmds.push(ESpineCommand::Reset(id_renderer));
     }
 
     pub fn spine_blend(
-        cmds: &mut Vec<ESpineCommand>,
+        cmds: &mut ActionListSpine,
         id_renderer: KeySpineRenderer,
         value: bool,
     ) {
@@ -513,13 +515,71 @@ impl ActionSpine {
     }
 
     pub fn spine_blend_mode(
-        cmds: &mut Vec<ESpineCommand>,
+        cmds: &mut ActionListSpine,
         id_renderer: KeySpineRenderer,
         src: wgpu::BlendFactor,
         dst: wgpu::BlendFactor,
     ) {
         cmds.push(ESpineCommand::BlendMode(id_renderer, src, dst));
     }
+}
+
+
+#[derive(Resource, Default)]
+pub struct SpineTextureLoad {
+    pub success: Share<SegQueue<(Atom, Handle<TextureRes>)>>,
+    pub fail: Share<SegQueue<(Atom, String)>>,
+    pub list: Vec<Atom>,
+}
+impl SpineTextureLoad {
+    pub fn load(&mut self, key: Atom) {
+        self.list.push(key)
+    }
+}
+
+
+fn sys_spine_texture_load(
+    mut loader: ResMut<SpineTextureLoad>,
+    device: Res<PiRenderDevice>,
+    queue: Res<PiRenderQueue>,
+    texture_assets_mgr: Res<ShareAssetMgr<TextureRes>>,
+) {
+    let mut list = replace(&mut loader.list, vec![]);
+    list.drain(..).for_each(|k| {
+        let result = AssetMgr::load(&texture_assets_mgr, &(k.asset_u64()));
+        match result {
+            LoadResult::Ok(r) => {
+                loader.success.push((k, r));
+            }
+            ,
+            _ => {
+                let success = loader.success.clone();
+                let fail = loader.fail.clone();
+                let device = device.0.clone();
+                let queue = queue.0.clone();
+    
+                MULTI_MEDIA_RUNTIME
+                    .spawn(MULTI_MEDIA_RUNTIME.alloc(), async move {
+                        let desc = ImageTextureDesc {
+                            url: &k,
+                            device: &device,
+                            queue: &queue,
+                        };
+        
+                        let r = TextureRes::async_load(desc, result).await;
+                        match r {
+                            Ok(r) => {
+                                success.push((k, r));
+                            }
+                            Err(e) => {
+                                fail.push((k, format!("load image fail, {:?}", e)));
+                            }
+                        };
+                    })
+                    .unwrap();
+            }
+        }
+    });
 }
 
 #[derive(Default)]
@@ -534,14 +594,18 @@ impl Plugin for PluginSpineRenderer {
         }
         
         let device = app.world.get_resource::<PiRenderDevice>().unwrap().0.clone();
-        app.insert_resource(SingleSpineCommands::default())
+        app.insert_resource(ActionListSpine::default())
             .insert_resource(SpineResource::new(&device))
-            .insert_resource(SpineRenderContext::new());
+            .insert_resource(SpineRenderContext::new())
+            .insert_resource(SpineTextureLoad::default());
 
-        app.add_systems((
-            sys_spine_cmds.before(sys_spine_render_apply),
-            sys_spine_render_apply
-        ));
+        app.add_systems(
+            (
+                sys_spine_cmds.before(sys_spine_render_apply),
+                sys_spine_render_apply,
+                sys_spine_texture_load
+            ).chain()
+        );
 
         log::warn!("PluginSpineRenderer");
     }
