@@ -35,7 +35,7 @@ pi_share = "0.4"
 pi_atom = { version="0.2", features = ["serde"] }
 pi_hal = { git = "https://github.com/GaiaWorld/pi_hal.git" }
 
-wgpu = "0.15"
+wgpu = { version = "0.15", default-features = false}
 env_logger = "0.9"
 log = "0.4"
 smallvec = "1.9"

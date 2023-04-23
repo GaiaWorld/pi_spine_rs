@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 keywords = ["scene Render"]
 
 [dependencies]
-wgpu = "0.15"
+wgpu = { version = "0.15", default-features = false }
 env_logger = "0.9"
 log = "0.4"
 smallvec = "1.9"
@@ -21,13 +21,7 @@ lazy_static = "1.4"
 pi_spatial = { git = "https://github.com/GaiaWorld/pi_spatial.git" }
 
 approx = "0.5"
-naga = { version = "0.11", features = [
-    "glsl-in",
-    "spv-in",
-    "spv-out",
-    "wgsl-in",
-    "wgsl-out",
-] }
+naga = { version = "0.11" }
 bytemuck = { version = "1.4", features = ["derive"] }
 
 wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
