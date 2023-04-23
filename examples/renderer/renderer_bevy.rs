@@ -4,7 +4,7 @@ use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
 use pi_bevy_ecs_extend::TShell;
 use pi_bevy_render_plugin::{PiRenderPlugin, PiRenderGraph, PiRenderDevice, PiRenderQueue};
-use pi_final_render_target::{PluginFinalRender, FinalRenderTarget};
+use pi_window_renderer::{PluginWindowRenderer, WindowRenderer};
 use pi_render::{asset::TAssetKeyU64, rhi::{asset::TextureRes, sampler::SamplerDesc}, renderer::sampler::SamplerRes};
 use pi_scene_math::{Vector4, Matrix};
 use pi_spine_rs::{PluginSpineRenderer, shaders::KeySpineShader, SpineRenderContext, ecs::{ResMut, Res, Commands}, SingleSpineCommands, KeySpineRenderer, ActionSpine};
@@ -20,7 +20,7 @@ fn runner(
     asset_textures: Res<ShareAssetMgr<TextureRes>>,
     asset_samplers: Res<ShareAssetMgr<SamplerRes>>,
     mut cmds: ResMut<SingleSpineCommands>,
-    mut final_render: Res<FinalRenderTarget>,
+    mut final_render: Res<WindowRenderer>,
 ) {
     let mut entitycmd = commands.spawn_empty();
     let id_renderer = KeySpineRenderer(entitycmd.id());
@@ -130,7 +130,7 @@ pub fn run() -> Engine {
 		app.add_plugin(WinitPlugin::default());
 		// .add_plugin(WorldInspectorPlugin::new())
 		app.add_plugin(PiRenderPlugin::default());
-		app.add_plugin(PluginFinalRender::default());
+		app.add_plugin(PluginWindowRenderer::default());
 		app.add_plugin(PluginSpineRenderer::default());
         app.add_startup_system(runner);
         // ;

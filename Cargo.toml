@@ -21,7 +21,7 @@ render_derive = { git = "https://github.com/GaiaWorld/pi_render", branch="bevy_s
 pi_bevy_render_plugin = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
 pi_bevy_asset = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
 pi_bevy_ecs_extend = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
-pi_final_render_target = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
+pi_window_renderer = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
 
 bevy = { version="0.10", default-features = false}
 pi_scene_math = { git = "https://github.com/GaiaWorld/pi_scene" }

@@ -8,8 +8,8 @@ use pi_assets::{mgr::{AssetMgr, LoadResult}, asset::{Handle, GarbageEmpty}};
 use pi_async::prelude::AsyncRuntime;
 use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
-use pi_bevy_render_plugin::{PiRenderDevice, PiRenderQueue, node::Node, PiSafeAtlasAllocator, SimpleInOut, PiScreenTexture, PiClearOptions, PiRenderGraph, NodeId, GraphError};
-use pi_final_render_target::WindowRenderer;
+use pi_bevy_render_plugin::{PiRenderDevice, PiRenderQueue, node::Node, PiSafeAtlasAllocator, SimpleInOut, PiScreenTexture, PiClearOptions, PiRenderGraph, NodeId, GraphError, PiRenderSystemSet};
+use pi_window_renderer::WindowRenderer;
 use pi_hal::{runtime::MULTI_MEDIA_RUNTIME, loader::AsyncLoader};
 use pi_hash::XHashMap;
 use pi_render::{rhi::{sampler::{SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}, asset::{TextureRes, ImageTextureDesc}, device}, asset::TAssetKeyU64, renderer::{sampler::SamplerRes, draw_obj_list::DrawList}, components::view::target_alloc::{ShareTargetView, TargetDescriptor, TextureDescriptor}};
@@ -153,7 +153,7 @@ impl Node for SpineRenderNode {
             
                     renderpass.set_viewport(x as f32, y as f32, w as f32, h as f32, min_depth, max_depth);
                     renderpass.set_scissor_rect(x as u32, y as u32, w as u32, h as u32);
-                    log::warn!("Draws: {:?}", renderer.render.drawobjs.list.len());
+                    log::warn!("DrawList::render: {:?}", renderer.render.drawobjs.list.len());
                     DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
                 }
 
@@ -186,7 +186,7 @@ impl Node for SpineRenderNode {
                     
                     // renderpass.set_viewport(x, y, w, h, min_depth, max_depth);
                     // renderpass.set_scissor_rect(x as u32, y as u32, w as u32, h as u32);
-                    log::warn!("Draws: {:?}", renderer.render.drawobjs.list.len());
+                    // log::warn!("Draws: {:?}", renderer.render.drawobjs.list.len());
                     DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
                 }
 
@@ -222,7 +222,7 @@ pub enum ESpineCommand {
     Reset(KeySpineRenderer),
     RenderSize(KeySpineRenderer, u32, u32),
     Shader(KeySpineRenderer, Option<KeySpineShader>),
-    UseTexture(KeySpineRenderer, Option<u64>, Option<SamplerDesc>),
+    UseTexture(KeySpineRenderer, Option<Handle<TextureRes>>, Option<Handle<SamplerRes>>),
     Texture(KeySpineRenderer, u64, Handle<TextureRes>, SamplerDesc, Handle<SamplerRes>),
     Blend(KeySpineRenderer, bool),
     BlendMode(KeySpineRenderer, wgpu::BlendFactor, wgpu::BlendFactor),
@@ -240,7 +240,10 @@ pub fn sys_spine_cmds(
     ) {
     clearopt.color.g = 0.;
     let mut list = cmds.drain();
+    let len = list.len();
+    let mut index = 0;
     list.drain(..).for_each(|cmd| {
+        index += 1;
         match cmd {
             ESpineCommand::Uniform(id, val) => {
                 if let Some(renderer) = renderers.list.get_mut(&id) {
@@ -263,6 +266,7 @@ pub fn sys_spine_cmds(
             ESpineCommand::Draw(id, vertices, indices, vlen, ilen) => {
                 if let Some(renderer) = renderers.list.get_mut(&id) {
                     // log::warn!("Cmd: Draw");
+                    // log::warn!("Cmd Draw: {:?} in {:?}", index, len);
                     renderer.render.draw(vertices, Some(indices), vlen, ilen);
                 }
             },
@@ -281,6 +285,7 @@ pub fn sys_spine_cmds(
             },
             ESpineCommand::Reset(id) => {
                 if let Some(renderer) = renderers.list.get_mut(&id) {
+                    // log::warn!("Cmd Reset: {:?} in {:?}", index, len);
                     renderer.render.reset();
                 }
             },
@@ -394,8 +399,8 @@ impl ActionSpine {
     pub fn spine_use_texture(
         cmds: &mut ActionListSpine,
         id_renderer: KeySpineRenderer,
-        value: u64,
-        sampler: SamplerDesc,
+        value: Handle<TextureRes>,
+        sampler: Handle<SamplerRes>,
     ) {
         cmds.push(ESpineCommand::UseTexture(id_renderer, Some(value), Some(sampler)));
     }
@@ -601,12 +606,12 @@ impl Plugin for PluginSpineRenderer {
 
         app.add_systems(
             (
-                sys_spine_cmds.before(sys_spine_render_apply),
+                sys_spine_cmds,
                 sys_spine_render_apply,
                 sys_spine_texture_load
-            ).chain()
+            ).chain().before(PiRenderSystemSet)
         );
 
-        log::warn!("PluginSpineRenderer");
+        // log::warn!("PluginSpineRenderer");
     }
 }
