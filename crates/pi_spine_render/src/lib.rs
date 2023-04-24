@@ -1,14 +1,14 @@
 
 use std::{mem::{replace, transmute}, num::NonZeroU32};
 
-use bevy::{prelude::{ResMut, Resource, App, Plugin, Res, IntoSystemConfig, Entity, IntoSystemConfigs}, ecs::system::EntityCommands};
+use bevy::{prelude::{ResMut, Resource, App, Plugin, Res, IntoSystemConfig, Entity, IntoSystemConfigs, Commands, SystemSet, apply_system_buffers}, ecs::system::EntityCommands, utils::tracing::Id};
 use crossbeam::queue::SegQueue;
 use futures::FutureExt;
 use pi_assets::{mgr::{AssetMgr, LoadResult}, asset::{Handle, GarbageEmpty}};
 use pi_async::prelude::AsyncRuntime;
 use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
-use pi_bevy_render_plugin::{PiRenderDevice, PiRenderQueue, node::Node, PiSafeAtlasAllocator, SimpleInOut, PiScreenTexture, PiClearOptions, PiRenderGraph, NodeId, GraphError, PiRenderSystemSet};
+use pi_bevy_render_plugin::{PiRenderDevice, PiRenderQueue, node::Node, PiSafeAtlasAllocator, SimpleInOut, PiScreenTexture, PiClearOptions, PiRenderGraph, NodeId, GraphError, PiRenderSystemSet, component::GraphId};
 use pi_window_renderer::WindowRenderer;
 use pi_hal::{runtime::MULTI_MEDIA_RUNTIME, loader::AsyncLoader};
 use pi_hash::XHashMap;
@@ -52,7 +52,7 @@ pub struct SpineRenderNodeParam {
     render: RendererAsync,
     width: u32,
     height: u32,
-    screen: bool,
+    to_screen: bool,
 }
 impl SpineRenderNodeParam {
     pub fn render_mut(&mut self) -> &mut RendererAsync {
@@ -86,11 +86,12 @@ impl Node for SpineRenderNode {
             renderer
         } else {
             return async move {
+                log::warn!("SpineGraph:: None renderer");
                 Ok(SimpleInOut { target: None })
             }.boxed();
         };
         
-        if renderer.screen == false {
+        if renderer.to_screen == false {
             Box::pin(
             async move {
                 
@@ -131,6 +132,26 @@ impl Node for SpineRenderNode {
                                         view: &target.target().colors[0].0,
                                         resolve_target: None,
                                         ops: wgpu::Operations {
+                                            load: wgpu::LoadOp::Clear(wgpu::Color { r: 0., g: 0., b: 0., a: 0. }),
+                                            store: true,
+                                        }
+                                    }
+                                )
+                            ],
+                            depth_stencil_attachment: None,
+                        }
+                    );
+                }
+                {
+                    let mut renderpass = encoder.begin_render_pass(
+                        &wgpu::RenderPassDescriptor {
+                            label: Some("RenderNode"),
+                            color_attachments: &[
+                                Some(
+                                    wgpu::RenderPassColorAttachment {
+                                        view: &target.target().colors[0].0,
+                                        resolve_target: None,
+                                        ops: wgpu::Operations {
                                             load: wgpu::LoadOp::Load,
                                             store: true,
                                         }
@@ -153,7 +174,7 @@ impl Node for SpineRenderNode {
             
                     renderpass.set_viewport(x as f32, y as f32, w as f32, h as f32, min_depth, max_depth);
                     renderpass.set_scissor_rect(x as u32, y as u32, w as u32, h as u32);
-                    log::warn!("DrawList::render: {:?}", renderer.render.drawobjs.list.len());
+                    log::warn!("SpineGraph DrawList::render: {:?}", renderer.render.drawobjs.list.len());
                     DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
                 }
 
@@ -186,7 +207,7 @@ impl Node for SpineRenderNode {
                     
                     // renderpass.set_viewport(x, y, w, h, min_depth, max_depth);
                     // renderpass.set_scissor_rect(x as u32, y as u32, w as u32, h as u32);
-                    // log::warn!("Draws: {:?}", renderer.render.drawobjs.list.len());
+                    log::warn!("SpineGraph Draws: {:?}", renderer.render.drawobjs.list.len());
                     DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
                 }
 
@@ -208,11 +229,11 @@ impl SpineRenderContext {
     pub fn get_mut(&mut self, key: KeySpineRenderer) -> Option<&mut SpineRenderNodeParam> {
         self.list.get_mut(&key)
     }
-    pub fn create_renderer(&mut self, key: KeySpineRenderer, screen: bool) {
+    pub fn create_renderer(&mut self, key: KeySpineRenderer, to_screen: bool) {
         // self.counter += 1;
         // let id = self.counter;
 
-        let render = SpineRenderNodeParam { render: RendererAsync::new(), width: 128, height: 128, screen };
+        let render = SpineRenderNodeParam { render: RendererAsync::new(), width: 128, height: 128, to_screen };
         self.list.insert(key, render);
     }
 }
@@ -228,6 +249,7 @@ pub enum ESpineCommand {
     BlendMode(KeySpineRenderer, wgpu::BlendFactor, wgpu::BlendFactor),
     Uniform(KeySpineRenderer, Vec<f32>),
     Draw(KeySpineRenderer, Vec<f32>, Vec<u16>, u32, u32),
+    Graph(KeySpineRenderer, NodeId),
 }
 
 
@@ -237,7 +259,8 @@ pub fn sys_spine_cmds(
     mut cmds: ResMut<ActionListSpine>,
     mut clearopt: ResMut<PiClearOptions>,
     mut renderers: ResMut<SpineRenderContext>,
-    ) {
+    mut commands: Commands,
+) {
     clearopt.color.g = 0.;
     let mut list = cmds.drain();
     let len = list.len();
@@ -299,6 +322,9 @@ pub fn sys_spine_cmds(
                 if let Some(renderer) = renderers.list.get_mut(&id) {
                     renderer.render.blend_mode(val0, val1);
                 }
+            },
+            ESpineCommand::Graph(id, node) => {
+                commands.entity(id.0).insert(GraphId(node));
             },
         }
     })
@@ -587,6 +613,10 @@ fn sys_spine_texture_load(
     });
 }
 
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+pub struct SpineSystemSet;
+
 #[derive(Default)]
 pub struct PluginSpineRenderer;
 impl Plugin for PluginSpineRenderer {
@@ -609,8 +639,10 @@ impl Plugin for PluginSpineRenderer {
                 sys_spine_cmds,
                 sys_spine_render_apply,
                 sys_spine_texture_load
-            ).chain().before(PiRenderSystemSet)
+            ).chain().in_set(SpineSystemSet).before(PiRenderSystemSet)
         );
+
+        app.add_system(apply_system_buffers.in_set(SpineSystemSet));
 
         // log::warn!("PluginSpineRenderer");
     }

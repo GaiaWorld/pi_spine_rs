@@ -64,11 +64,11 @@ render_derive = { path = "../pi_render/crates/render_derive" }
 # [patch."http://ser.yinengyun.com:10082/tech/winit.git"]
 # winit = { path = "../winit" }
 
-# [patch."https://github.com/GaiaWorld/pi_render_bevy"]
-# pi_bevy_render_plugin = { path = "../pi_render_bevy/crates/render" }
-# pi_bevy_asset = { path = "../pi_render_bevy/crates/asset" }
-# pi_bevy_ecs_extend = { path = "../pi_render_bevy/crates/ecs_extend" }
-# pi_final_render_target = { path = "../pi_render_bevy/crates/final_render_target" }
+[patch."https://github.com/GaiaWorld/pi_render_bevy"]
+pi_bevy_render_plugin = { path = "../pi_render_bevy/crates/render" }
+pi_bevy_asset = { path = "../pi_render_bevy/crates/asset" }
+pi_bevy_ecs_extend = { path = "../pi_render_bevy/crates/ecs_extend" }
+pi_window_renderer = { path = "../pi_render_bevy/crates/window_renderer" }
 
 [dev-dependencies]
 image = "0.24"

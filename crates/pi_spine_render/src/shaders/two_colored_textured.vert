@@ -14,8 +14,7 @@ layout(location = 2) out vec2 v_texCoords;
 layout(set = 0, binding = 0) uniform Param {
     mat4 u_projTrans;
     vec4 u_maskflag;
-    vec2 u_visibility;
-    vec2 _place_hold;
+    vec4 u_visibility;
 };
 
 void main() {
@@ -23,6 +22,6 @@ void main() {
     v_dark = a_color2;
     v_texCoords = a_texCoords;
     vec4 pos = u_projTrans * vec4(a_position, 0., 1.);
-    // pos.z = pos.z * 0.5 + 0.5;
+    pos.z = pos.z * 0.5 + 0.5;
     gl_Position = pos;
 }

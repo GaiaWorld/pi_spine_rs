@@ -160,7 +160,7 @@ impl RendererAsync {
                 },
                 KeySpineShader::TwoColoredTextured => {
                     
-                    log::warn!("VB : ");
+                    // log::warn!("VB : ");
                     let vb = if let Some(vb) = resource.vballocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(&draw.vertices)) {
 
                         let mut result = SmallVecMap::default();
@@ -195,10 +195,10 @@ impl RendererAsync {
                 },
             };
             
-            log::warn!("IB : ");
+            // log::warn!("IB : ");
 
             let ib = if let Some(indices) = &draw.indices {
-                if let Some(ib) = resource.vballocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(indices)) {
+                if let Some(ib) = resource.vballocator.create_not_updatable_buffer_for_index(device, queue, bytemuck::cast_slice(indices)) {
                     let temp = RenderIndices { buffer: EVerticesBufferUsage::EVBRange(Arc::new(ib)), buffer_range: Some(Range { start: 0, end: (draw.indiceslen * 2) as u64  }), format: wgpu::IndexFormat::Uint16 };
                     Some(temp)
                 } else {
@@ -209,7 +209,7 @@ impl RendererAsync {
                 None
             };
             
-            log::warn!("Pipeline : ");
+            // log::warn!("Pipeline : ");
 
             let pipeline = resource.pipelines.get(device, &draw.pipeline);
             let mut bindgroups = DrawBindGroups::default();
@@ -226,7 +226,7 @@ impl RendererAsync {
             };
 
             self.drawobjs.list.push(Arc::new(draw));
-            log::warn!("drawlist : {:?}", self.drawobjs.list.len());
+            // log::warn!("drawlist : {:?}", self.drawobjs.list.len());
         });
 
         &self.drawobjs

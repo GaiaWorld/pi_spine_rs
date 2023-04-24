@@ -4,7 +4,7 @@ use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
 use pi_bevy_ecs_extend::TShell;
 use pi_bevy_render_plugin::{PiRenderPlugin, PiRenderGraph, PiRenderDevice, PiRenderQueue};
-use pi_window_renderer::{PluginWindowRenderer, WindowRenderer};
+use pi_window_renderer::{PluginWindowRender, WindowRenderer};
 use pi_render::{asset::TAssetKeyU64, rhi::{asset::TextureRes, sampler::SamplerDesc}, renderer::sampler::SamplerRes};
 use pi_scene_math::{Vector4, Matrix};
 use pi_spine_rs::{PluginSpineRenderer, shaders::KeySpineShader, SpineRenderContext, ecs::{ResMut, Res, Commands}, SingleSpineCommands, KeySpineRenderer, ActionSpine};

@@ -11,8 +11,7 @@ layout(location = 0) out vec4 gl_FragColor;
 layout(set = 0, binding = 0) uniform Param {
     mat4 u_projTrans;
     vec4 u_maskflag;
-    vec2 u_visibility;
-    vec2 _place_hold;
+    vec4 u_visibility;
 };
 
 layout(set = 0, binding = 1) uniform texture2D u_texture;
@@ -38,14 +37,17 @@ vec3 hsv2rgb(vec3 c)
 
 void main() {
     vec4 texColor = texture(sampler2D(u_texture, sampler_u_texture), v_texCoords);
-    gl_FragColor.a = texColor.a * v_light.a;
-    gl_FragColor.rgb = ((texColor.a - 1.0) * v_dark.a + 1.0 - texColor.rgb) * v_dark.rgb + texColor.rgb * v_light.rgb;
+    vec4 baseColor = vec4(1., 1., 1., 1.);
+    baseColor.a = texColor.a * v_light.a;
+    baseColor.rgb = ((texColor.a - 1.0) * v_dark.a + 1.0 - texColor.rgb) * v_dark.rgb + texColor.rgb * v_light.rgb;
     
-    if (u_maskflag.w == 1.0) {
-        gl_FragColor.rgb = u_maskflag.rgb * gl_FragColor.a;
+    float _one = step(0.5, u_maskflag.w);
+    float _two = step(1.5, u_maskflag.w);
+    if (_one * (1.0 - _two) > 0.) {
+        baseColor.rgb = u_maskflag.rgb * baseColor.a;
     }
-    if (u_maskflag.w == 2.0) {
-        vec4 c = gl_FragColor;
+    if (_two > 0.) {
+        vec4 c = baseColor;
         vec3 hsvValue = u_maskflag.rgb;
 
         vec3 hsv = rgb2hsv(c.rgb);
@@ -61,9 +63,11 @@ void main() {
         } else {
             c.rgb *= 1.0 + hsvValue.b;
         }
-        gl_FragColor = c;
-        
-        gl_FragColor.rgb *= u_visibility.x;
-        gl_FragColor.rgb *= mix(1.0, gl_FragColor.a, u_visibility.y);
+        baseColor = c;
     }
+
+    baseColor.rgb *= u_visibility.x;
+    baseColor.a   *= u_visibility.z;
+    baseColor.rgb *= mix(1.0, baseColor.a, u_visibility.y);
+    gl_FragColor = baseColor;
 }
