@@ -22,6 +22,6 @@ void main() {
     v_dark = a_color2;
     v_texCoords = a_texCoords;
     vec4 pos = u_projTrans * vec4(a_position, 0., 1.);
-    pos.zw = (pos.z + pos.w) * 0.5;
+    pos.z = (pos.z + pos.w) * 0.5;
     gl_Position = pos;
 }
