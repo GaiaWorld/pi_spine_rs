@@ -16,6 +16,6 @@ layout(set = 0, binding = 0) uniform Param {
 void main() {
     v_color = a_color;
     vec4 pos = u_projTrans * vec4(a_position, 0., 1.);
-    pos.zw = pos.zw * (0.5) + 0.5;
+    pos.zw = (pos.z + pos.w) * 0.5;
     gl_Position = pos;
 }

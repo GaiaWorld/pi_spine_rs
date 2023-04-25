@@ -8,7 +8,7 @@ use pi_assets::{mgr::{AssetMgr, LoadResult}, asset::{Handle, GarbageEmpty}};
 use pi_async::prelude::AsyncRuntime;
 use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
-use pi_bevy_render_plugin::{PiRenderDevice, PiRenderQueue, node::Node, PiSafeAtlasAllocator, SimpleInOut, PiScreenTexture, PiClearOptions, PiRenderGraph, NodeId, GraphError, PiRenderSystemSet, component::GraphId};
+use pi_bevy_render_plugin::{PiRenderDevice, PiRenderQueue, node::Node, PiSafeAtlasAllocator, SimpleInOut, PiScreenTexture, PiClearOptions, PiRenderGraph, NodeId, GraphError, PiRenderSystemSet, component::GraphId, PiRenderOptions};
 use pi_window_renderer::WindowRenderer;
 use pi_hal::{runtime::MULTI_MEDIA_RUNTIME, loader::AsyncLoader};
 use pi_hash::XHashMap;
@@ -174,7 +174,7 @@ impl Node for SpineRenderNode {
             
                     renderpass.set_viewport(x as f32, y as f32, w as f32, h as f32, min_depth, max_depth);
                     renderpass.set_scissor_rect(x as u32, y as u32, w as u32, h as u32);
-                    log::warn!("SpineGraph DrawList::render: {:?}", renderer.render.drawobjs.list.len());
+                    // log::warn!("SpineGraph DrawList::render: {:?}", renderer.render.drawobjs.list.len());
                     DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
                 }
 
@@ -207,7 +207,7 @@ impl Node for SpineRenderNode {
                     
                     // renderpass.set_viewport(x, y, w, h, min_depth, max_depth);
                     // renderpass.set_scissor_rect(x as u32, y as u32, w as u32, h as u32);
-                    log::warn!("SpineGraph Draws: {:?}", renderer.render.drawobjs.list.len());
+                    // log::warn!("SpineGraph Draws: {:?}", renderer.render.drawobjs.list.len());
                     DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
                 }
 
@@ -259,6 +259,7 @@ pub fn sys_spine_cmds(
     mut cmds: ResMut<ActionListSpine>,
     mut clearopt: ResMut<PiClearOptions>,
     mut renderers: ResMut<SpineRenderContext>,
+    mut renderopt: Res<PiRenderOptions>,
     mut commands: Commands,
 ) {
     clearopt.color.g = 0.;
@@ -290,7 +291,7 @@ pub fn sys_spine_cmds(
                 if let Some(renderer) = renderers.list.get_mut(&id) {
                     // log::warn!("Cmd: Draw");
                     // log::warn!("Cmd Draw: {:?} in {:?}", index, len);
-                    renderer.render.draw(vertices, Some(indices), vlen, ilen);
+                    renderer.render.draw(vertices, Some(indices), vlen, ilen, &renderopt);
                 }
             },
             ESpineCommand::Texture(id, key, value, key2, value2) => {

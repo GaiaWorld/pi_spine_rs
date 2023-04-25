@@ -18,7 +18,7 @@ use pi_render::{
     rhi::{
         asset::{TextureRes, RenderRes},
         device::RenderDevice, RenderQueue, bind_group::BindGroup, PrimitiveState,
-        sampler::SamplerDesc
+        sampler::SamplerDesc, options::RenderOptions
     }, asset::TAssetKeyU64
 };
 use pi_share::Share;
@@ -313,6 +313,7 @@ impl RendererAsync {
         indices: Option<Vec<u16>>,
         vertices_len: u32,
         indices_len: u32,
+        renderopt: &RenderOptions,
     ) {
         let shader = if let Some(shader) = &self.shader {
             shader
@@ -352,6 +353,8 @@ impl RendererAsync {
         } else {
             None
         };
+
+        // let unclipped_depth = renderopt.features & wgpu::Features::DEPTH_CLIP_CONTROL == wgpu::Features::DEPTH_CLIP_CONTROL;
 
         let key: KeySpinePipeline = KeySpinePipeline {
             key_shader: shader.clone(),
