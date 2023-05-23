@@ -1,13 +1,13 @@
-use bevy::{prelude::App, winit::WinitPlugin};
+use bevy::{prelude::App};
 use image::GenericImageView;
 use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
 use pi_bevy_ecs_extend::TShell;
 use pi_bevy_render_plugin::{PiRenderPlugin, PiRenderGraph, PiRenderDevice, PiRenderQueue};
 use pi_window_renderer::{PluginWindowRender, WindowRenderer};
-use pi_render::{asset::TAssetKeyU64, rhi::{asset::TextureRes, sampler::SamplerDesc}, renderer::sampler::SamplerRes};
+use pi_render::{asset::TAssetKeyU64, rhi::{asset::TextureRes, sampler::{SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}}, renderer::sampler::SamplerRes};
 use pi_scene_math::{Vector4, Matrix};
-use pi_spine_rs::{PluginSpineRenderer, shaders::KeySpineShader, SpineRenderContext, ecs::{ResMut, Res, Commands}, SingleSpineCommands, KeySpineRenderer, ActionSpine};
+use pi_spine_rs::{PluginSpineRenderer, shaders::KeySpineShader, SpineRenderContext, ecs::{ResMut, Res, Commands}, ActionListSpine, KeySpineRenderer, ActionSpine};
 
 use super::{vertices::VERTICES, indices::INDICES};
 
@@ -19,7 +19,7 @@ fn runner(
     queue: Res<PiRenderQueue>,
     asset_textures: Res<ShareAssetMgr<TextureRes>>,
     asset_samplers: Res<ShareAssetMgr<SamplerRes>>,
-    mut cmds: ResMut<SingleSpineCommands>,
+    mut cmds: ResMut<ActionListSpine>,
     mut final_render: Res<WindowRenderer>,
 ) {
     let mut entitycmd = commands.spawn_empty();
@@ -54,13 +54,25 @@ fn runner(
             Vector4::new(0.5000, 0.5000, 0.5000, 0.).as_slice().iter().for_each(|v| {
                 uniform_param.push(*v);
             });
-            uniform_param.push(1.);
+            [1., 1., 1., 1.].iter().for_each(|v| {
+                uniform_param.push(*v);
+            });
             
-            let samplerdesc = SamplerDesc::linear_default();
+            let samplerdesc = SamplerDesc {
+                address_mode_u: EAddressMode::ClampToEdge,
+                address_mode_v: EAddressMode::ClampToEdge,
+                address_mode_w: EAddressMode::ClampToEdge,
+                mag_filter: EFilterMode::Nearest,
+                min_filter: EFilterMode::Nearest,
+                mipmap_filter: EFilterMode::Nearest,
+                compare: None,
+                anisotropy_clamp: EAnisotropyClamp::None,
+                border_color: None,
+            };
             let sampler = if let Some(sampler) = asset_samplers.get(&samplerdesc) {
                 sampler
             } else {
-                if let Some(sampler) = asset_samplers.insert(samplerdesc.clone(), SamplerRes::new(&device, &samplerdesc)) {
+                if let Ok(sampler) = asset_samplers.insert(samplerdesc.clone(), SamplerRes::new(&device, &samplerdesc)) {
                     sampler
                 } else {
                     return;
@@ -68,16 +80,17 @@ fn runner(
             };
             if let Some(renderer) = ctx.get_mut(id_renderer) {
                 // log::warn!("Cmd: Texture");
-                renderer.render_mut().record_sampler(samplerdesc, sampler);
+                renderer.render_mut().record_sampler(samplerdesc, sampler.clone());
             }
     
             let key_image = "../wanzhuqian.png";
-            ActionSpine::spine_texture(&mut cmds.0, id_renderer, key_image.clone(), diffuse_rgba, dimensions.0, dimensions.1, &device, &queue, &asset_textures, &asset_samplers);
-            ActionSpine::spine_shader(&mut cmds.0, id_renderer, KeySpineShader::TwoColoredTextured);
-            ActionSpine::spine_uniform(&mut cmds.0, id_renderer, &uniform_param);
-            ActionSpine::spine_use_texture(&mut cmds.0, id_renderer, key_image.asset_u64(), SamplerDesc::linear_default());
+            ActionSpine::spine_texture(&mut cmds, id_renderer, key_image.clone(), diffuse_rgba, dimensions.0, dimensions.1, &device, &queue, &asset_textures, &asset_samplers);
+            ActionSpine::spine_shader(&mut cmds, id_renderer, KeySpineShader::TwoColoredTextured);
+            ActionSpine::spine_uniform(&mut cmds, id_renderer, &uniform_param);
+            ActionSpine::spine_use_texture(&mut cmds, id_renderer, asset_textures.get(&key_image.asset_u64()).unwrap(), sampler.clone());
+            ActionSpine::spine_blend_mode(&mut cmds, id_renderer, wgpu::BlendFactor::One, wgpu::BlendFactor::OneMinusSrcAlpha);
             ActionSpine::spine_draw(
-                &mut cmds.0, 
+                &mut cmds, 
                 id_renderer,
                 &VERTICES.as_slice()[0..9636],
                 &INDICES.as_slice()[0..2352],
@@ -127,10 +140,10 @@ pub fn run() -> Engine {
 		app.add_plugin(bevy::input::InputPlugin::default());
 		app.add_plugin(window_plugin);
         app.add_plugin(bevy::a11y::AccessibilityPlugin);
-		app.add_plugin(WinitPlugin::default());
+        app.add_plugin(bevy::winit::WinitPlugin::default());
 		// .add_plugin(WorldInspectorPlugin::new())
 		app.add_plugin(PiRenderPlugin::default());
-		app.add_plugin(PluginWindowRenderer::default());
+		app.add_plugin(PluginWindowRender::default());
 		app.add_plugin(PluginSpineRenderer::default());
         app.add_startup_system(runner);
         // ;

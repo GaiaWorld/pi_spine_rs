@@ -8,7 +8,10 @@ use pi_assets::{mgr::{AssetMgr, LoadResult}, asset::{Handle, GarbageEmpty}};
 use pi_async::prelude::AsyncRuntime;
 use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
-use pi_bevy_render_plugin::{PiRenderDevice, PiRenderQueue, node::Node, PiSafeAtlasAllocator, SimpleInOut, PiScreenTexture, PiClearOptions, PiRenderGraph, NodeId, GraphError, PiRenderSystemSet, component::GraphId, PiRenderOptions};
+use pi_bevy_render_plugin::{
+    PiRenderDevice, PiRenderQueue, node::Node, PiSafeAtlasAllocator, SimpleInOut, PiScreenTexture, PiClearOptions, PiRenderGraph, NodeId, GraphError, PiRenderSystemSet, component::GraphId, PiRenderOptions,
+    constant::texture_sampler::*
+};
 use pi_window_renderer::WindowRenderer;
 use pi_hal::{runtime::MULTI_MEDIA_RUNTIME, loader::AsyncLoader};
 use pi_hash::XHashMap;
@@ -27,7 +30,7 @@ pub mod vertex_buffer;
 pub mod renderer;
 pub mod ecs;
 
-pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
+pub const FORMAT: ColorFormat = ColorFormat::Rgba8Unorm;
 pub const SAMPLER_DESC: SamplerDesc = SamplerDesc {
     address_mode_u: EAddressMode::Repeat,
     address_mode_v: EAddressMode::Repeat,
@@ -99,13 +102,13 @@ impl Node for SpineRenderNode {
 
                 let target_type = atlas_allocator.get_or_create_type(
                     TargetDescriptor {
-                        texture_descriptor: SmallVec::from_slice(
+                        colors_descriptor: SmallVec::from_slice(
                             &[
                                 TextureDescriptor {
                                     mip_level_count: 1,
                                     sample_count: 1,
                                     dimension: wgpu::TextureDimension::D2,
-                                    format: FORMAT,
+                                    format: FORMAT.val(),
                                     usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
                                     base_mip_level: 0,
                                     base_array_layer: 0,
@@ -117,6 +120,7 @@ impl Node for SpineRenderNode {
                         need_depth: false,
                         default_width: 2048,
                         default_height: 2048,
+                        depth_descriptor: None,
                     }
                 );
 
@@ -367,7 +371,7 @@ impl ActionSpine {
         ctx.create_renderer(id, rendersize.is_none());
         match rendersize {
             Some(rendersize) => {
-                ctx.list.get_mut(&id).unwrap().render.target_format = wgpu::TextureFormat::Rgba8UnormSrgb;
+                ctx.list.get_mut(&id).unwrap().render.target_format = wgpu::TextureFormat::Rgba8Unorm;
                 ctx.list.get_mut(&id).unwrap().width = rendersize.0;
                 ctx.list.get_mut(&id).unwrap().height = rendersize.1;
             },
