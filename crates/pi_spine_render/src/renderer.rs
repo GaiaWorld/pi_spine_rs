@@ -12,7 +12,7 @@ use pi_render::{
         sampler::SamplerRes,
         pipeline::KeyRenderPipelineState,
         vertices::{RenderVertices, EVerticesBufferUsage, RenderIndices},
-        draw_obj_list::DrawList, vertex_buffer::VertexBufferAllocator,
+        draw_obj_list::DrawList, vertex_buffer::{VertexBufferAllocator, EVertexBufferRange},
         texture::*
     },
     rhi::{
@@ -63,6 +63,8 @@ pub struct RendererAsync {
     pub(crate) bind_groups: Vec<SpineBindGroup>,
     pub(crate) draws: Vec<SpineDraw>,
     pub(crate) drawobjs: DrawList,
+    pub(crate) vbs: XHashMap<usize, EVertexBufferRange>,
+    pub(crate) ibs: XHashMap<usize, EVertexBufferRange>,
     pub(crate) shader: Option<KeySpineShader>,
     pub(crate) blend: wgpu::BlendState,
     pub(crate) enableblend: bool,
@@ -96,6 +98,8 @@ impl RendererAsync {
             textures: XHashMap::default(),
             samplers: XHashMap::default(),
             target_format: wgpu::TextureFormat::Bgra8Unorm,
+            vbs: XHashMap::default(),
+            ibs: XHashMap::default(),
         }
     }
     pub fn drawlist(
@@ -114,7 +118,66 @@ impl RendererAsync {
             }
         });
 
+        let mut index = 0;
         self.draws.drain(..).for_each(|draw| {
+            let vbdata = bytemuck::cast_slice(&draw.vertices);
+
+            let mut vbbuffer = None;
+            if let Some(vbold) = self.vbs.remove(&index) {
+                if let EVertexBufferRange::NotUpdatable(range) = &vbold {
+                    if range.buffer().size() >= vbdata.len() as u64 {
+                        queue.write_buffer(range.buffer(), 0, vbdata);
+                        vbbuffer = Some(vbold.clone());
+                    }
+                }
+            }
+            let vbbuffer = if let Some(vbbuffer) = vbbuffer {
+                vbbuffer
+            }
+            else {
+                if let Some(vbbuffer) = resource.vballocator.create_not_updatable_buffer(device, queue, vbdata) {
+                    vbbuffer
+                } else {
+                    return;
+                }
+            };
+
+            self.vbs.insert(index, vbbuffer.clone());
+            let mut vb = SmallVecMap::default();
+            vb.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(Arc::new(vbbuffer)), buffer_range: Some(Range { start: 0, end: (draw.verticeslen * 4) as u64  }), size_per_value: draw.shader.vertices_bytes_per_element() as u64 });
+
+
+            let ib = if let Some(indices) = &draw.indices {
+                let ibdata = bytemuck::cast_slice(indices);
+
+                let mut ibbuffer = None;
+                if let Some(ibold) = self.ibs.remove(&index) {
+                    if let EVertexBufferRange::NotUpdatable(range) = &ibold {
+                        if range.buffer().size() >= ibdata.len() as u64 {
+                            queue.write_buffer(range.buffer(), 0, ibdata);
+                            ibbuffer = Some(ibold.clone());
+                        }
+                    }
+                }
+                let ib = if let Some(ibbuffer) = ibbuffer {
+                    ibbuffer
+                }
+                else {
+                    if let Some(ibbuffer) = resource.vballocator.create_not_updatable_buffer_for_index(device, queue, ibdata) {
+                        ibbuffer
+                    } else {
+                        return;
+                    }
+                };
+
+                self.ibs.insert(index, ib.clone());
+
+                let temp = RenderIndices { buffer: EVerticesBufferUsage::EVBRange(Arc::new(ib)), buffer_range: Some(Range { start: 0, end: (draw.indiceslen * 2) as u64  }), format: wgpu::IndexFormat::Uint16 };
+                Some(temp)
+            } else {
+                None
+            };
+
             let bind = if let Some(bind) = binds.get(draw.bind_key) {
                 bind
             } else {
@@ -123,30 +186,10 @@ impl RendererAsync {
             };
             let (vb, bindgroup) = match &draw.shader {
                 KeySpineShader::Colored => {
-                    let vb = if let Some(vb) = resource.vballocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(&draw.vertices)) {
-
-                        let mut result = SmallVecMap::default();
-                        result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(Arc::new(vb)), buffer_range: Some(Range { start: 0, end: (draw.verticeslen * 4) as u64  }), size_per_value: draw.shader.vertices_bytes_per_element() as u64 });
-                        result
-                    } else {
-                        // log::warn!("drawlist Err: vb");
-                        return;
-                    };
-
                     let bindgroup = SpineBindGroup::colored(bind.0.clone(), device, &resource.asset_mgr_bindgroup, &resource.bind_group_layouts);
                     (vb, bindgroup)
                 },
                 KeySpineShader::ColoredTextured => {
-                    let vb = if let Some(vb) = resource.vballocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(&draw.vertices)) {
-
-                        let mut result = SmallVecMap::default();
-                        result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(Arc::new(vb)), buffer_range: Some(Range { start: 0, end: (draw.verticeslen * 4) as u64  }), size_per_value: draw.shader.vertices_bytes_per_element() as u64 });
-                        result
-                    } else {
-                        // log::warn!("drawlist Err: vb");
-                        return;
-                    };
-                    
                     match (draw.texture.clone(), draw.sampler.clone()) {
                         (Some(texture), Some(sampler)) => {
                             let bindgroup = SpineBindGroup::two_colored_textured(bind.0.clone(), device, texture, sampler, &resource.asset_mgr_bindgroup, &resource.bind_group_layouts);
@@ -159,17 +202,6 @@ impl RendererAsync {
                     }
                 },
                 KeySpineShader::TwoColoredTextured => {
-                    
-                    // log::warn!("VB : ");
-                    let vb = if let Some(vb) = resource.vballocator.create_not_updatable_buffer(device, queue, bytemuck::cast_slice(&draw.vertices)) {
-
-                        let mut result = SmallVecMap::default();
-                        result.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(Arc::new(vb)), buffer_range: Some(Range { start: 0, end: (draw.verticeslen * 4) as u64  }), size_per_value: draw.shader.vertices_bytes_per_element() as u64 });
-                        result
-                    } else {
-                        // log::warn!("drawlist Err: vb");
-                        return;
-                    };
                     match (draw.texture.clone(), draw.sampler.clone()) {
                         (Some(texture), Some(sampler)) => {
                             let bindgroup = SpineBindGroup::two_colored_textured(bind.0.clone(), device, texture, sampler, &resource.asset_mgr_bindgroup, &resource.bind_group_layouts);
@@ -197,17 +229,6 @@ impl RendererAsync {
             
             // log::warn!("IB : ");
 
-            let ib = if let Some(indices) = &draw.indices {
-                if let Some(ib) = resource.vballocator.create_not_updatable_buffer_for_index(device, queue, bytemuck::cast_slice(indices)) {
-                    let temp = RenderIndices { buffer: EVerticesBufferUsage::EVBRange(Arc::new(ib)), buffer_range: Some(Range { start: 0, end: (draw.indiceslen * 2) as u64  }), format: wgpu::IndexFormat::Uint16 };
-                    Some(temp)
-                } else {
-                    // log::warn!("drawlist Err: ib");
-                    return;
-                }
-            } else {
-                None
-            };
             
             // log::warn!("Pipeline : ");
 
@@ -225,6 +246,7 @@ impl RendererAsync {
                 indices: ib,
             };
 
+            index += 1;
             self.drawobjs.list.push(Arc::new(draw));
             // log::warn!("drawlist : {:?}", self.drawobjs.list.len());
         });
@@ -360,13 +382,14 @@ impl RendererAsync {
             key_shader: shader.clone(),
             key_state: KeyRenderPipelineState {
                 primitive: PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleStrip,
-                    strip_index_format: Some(wgpu::IndexFormat::Uint16),
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
                     polygon_mode: wgpu::PolygonMode::Fill,
                     front_face: wgpu::FrontFace::Ccw,
                     
                     #[cfg(not(target_arch = "wasm32"))]
                     unclipped_depth: true,
+
                     cull_mode: None,
                     ..Default::default()
                 },
