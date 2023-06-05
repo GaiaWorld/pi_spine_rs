@@ -39,7 +39,7 @@ impl SpineResource {
         Self {
             pipelines: SingleSpinePipelinePool::new(device),
             bind_group_layouts: SingleSpineBindGroupLayout::new(device),
-            vballocator: VertexBufferAllocator::new(),
+            vballocator: VertexBufferAllocator::new(64 * 1024, 60 * 1000),
             bindallocator: BindBufferAllocator::new(),
             asset_mgr_bindgroup: AssetMgr::<RenderRes::<BindGroup>>::new(GarbageEmpty(), false, 1024, 30 * 1000),
         }

@@ -511,7 +511,7 @@ impl ActionSpine {
                 array_layer_count: None,
             });
 
-            let textureres = TextureRes::new(width, height, (width * height * 4) as usize, texture_view, true);
+            let textureres = TextureRes::new(width, height, (width * height * 4) as usize, texture_view, true, wgpu::TextureFormat::Rgba8UnormSrgb);
             
             if let Ok(texture) = asset_textures.insert(key_u64, textureres) {
                 texture

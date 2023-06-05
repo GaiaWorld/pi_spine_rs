@@ -150,7 +150,7 @@ impl State {
         let asset_mgr_texture: Share<AssetMgr<TextureRes>> = AssetMgr::<TextureRes>::new(GarbageEmpty(), false,  1024 * 1024 , 100 * 1000);
         let asset_mgr_sampler: Share<AssetMgr<Sampler>> = AssetMgr::<Sampler>::new(GarbageEmpty(), false, 10 * 1024 * 1024 , 100 * 1000);
 
-        asset_mgr_texture.insert(Atom::from("wanzhuqian.png").get_hash() as u64, TextureRes::new(texture_size.width, texture_size.height, (texture_size.width * texture_size.height * 4) as usize, texture_view, true));
+        asset_mgr_texture.insert(Atom::from("wanzhuqian.png").get_hash() as u64, TextureRes::new(texture_size.width, texture_size.height, (texture_size.width * texture_size.height * 4) as usize, texture_view, true, wgpu::TextureFormat::Rgba8UnormSrgb));
 
         // let texture_view = test_texture(&device, &asset_mgr_texture);
         // for i in 0..1 {
@@ -162,7 +162,7 @@ impl State {
         let renderdevice = RenderDevice::from(Arc::new(device));
         let queue = RenderQueue::from(Arc::new(queue));
 
-        let vb_allocator = VertexBufferAllocator::new();
+        let vb_allocator = VertexBufferAllocator::new(64 * 1024, 60 * 1000);
         let pipelines = SingleSpinePipelinePool::new(&renderdevice);
         let bind_group_layouts = SingleSpineBindGroupLayout::new(&renderdevice);
         let bind_buffers = BindBufferAllocator::new();
