@@ -11,9 +11,9 @@ pub struct BindBufferAllocator {
     mutex: ShareMutex<()>,
 }
 impl BindBufferAllocator {
-    pub fn new() -> Self {
+    pub fn new(capacity: usize, timeout: usize) -> Self {
         Self {
-            asset_mgr: AssetMgr::<SpineBindBuffer>::new(GarbageEmpty(), false, 16 * 1024, 10 * 1000),
+            asset_mgr: AssetMgr::<SpineBindBuffer>::new(GarbageEmpty(), false, capacity, timeout),
             couter: 0,
             list: Arc::new(vec![]),
             mutex: ShareMutex::new(())

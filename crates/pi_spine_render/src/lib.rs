@@ -622,6 +622,22 @@ fn sys_spine_texture_load(
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 pub struct SpineSystemSet;
 
+#[derive(Clone, Resource)]
+pub struct SpineAssetConfig {
+    pub vertex_buffer: (usize, usize),
+    pub bind_buffer: (usize, usize),
+    pub bind_group: (usize, usize),
+}
+impl Default for SpineAssetConfig {
+    fn default() -> Self {
+        Self {
+            vertex_buffer: (10 * 1024 * 1024, 60 * 1024),
+            bind_buffer: (1 * 1024 * 1024, 60 * 1024),
+            bind_group: (100 * 1024, 60 * 1024),
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct PluginSpineRenderer;
 impl Plugin for PluginSpineRenderer {
@@ -632,10 +648,17 @@ impl Plugin for PluginSpineRenderer {
         if app.world.get_resource::<ShareAssetMgr<TextureRes>>().is_none() {
             app.insert_resource(ShareAssetMgr::<TextureRes>::new(GarbageEmpty(), false, 32 * 1024 * 1024, 30 * 1000));
         }
+
+        let cfg = if let Some(cfg) = app.world.get_resource::<SpineAssetConfig>() {
+            cfg.clone()
+        } else {
+            app.world.insert_resource(SpineAssetConfig::default());
+            app.world.get_resource::<SpineAssetConfig>().unwrap().clone()
+        };
         
         let device = app.world.get_resource::<PiRenderDevice>().unwrap().0.clone();
         app.insert_resource(ActionListSpine::default())
-            .insert_resource(SpineResource::new(&device))
+            .insert_resource(SpineResource::new(&device, cfg.vertex_buffer.clone(), cfg.bind_buffer.clone(), cfg.bind_group.clone()))
             .insert_resource(SpineRenderContext::new())
             .insert_resource(SpineTextureLoad::default());
 

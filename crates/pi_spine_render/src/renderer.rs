@@ -35,13 +35,13 @@ pub struct SpineResource {
     asset_mgr_bindgroup: Share<AssetMgr<RenderRes<BindGroup>>>,
 }
 impl SpineResource {
-    pub fn new(device: &RenderDevice) -> Self {
+    pub fn new(device: &RenderDevice, vbcache: (usize, usize), bindcache: (usize, usize), bindgroupcache: (usize, usize)) -> Self {
         Self {
             pipelines: SingleSpinePipelinePool::new(device),
             bind_group_layouts: SingleSpineBindGroupLayout::new(device),
-            vballocator: VertexBufferAllocator::new(),
-            bindallocator: BindBufferAllocator::new(),
-            asset_mgr_bindgroup: AssetMgr::<RenderRes::<BindGroup>>::new(GarbageEmpty(), false, 1024, 30 * 1000),
+            vballocator: VertexBufferAllocator::new(vbcache.0, vbcache.1),
+            bindallocator: BindBufferAllocator::new(bindcache.0, bindcache.1),
+            asset_mgr_bindgroup: AssetMgr::<RenderRes::<BindGroup>>::new(GarbageEmpty(), false, bindgroupcache.0, bindgroupcache.1),
         }
     }
 }
@@ -124,10 +124,10 @@ impl RendererAsync {
 
             let mut vbbuffer = None;
             if let Some(vbold) = self.vbs.remove(&index) {
-                if let EVertexBufferRange::NotUpdatable(range) = &vbold {
+                if let EVertexBufferRange::NotUpdatable(range) = vbold {
                     if range.buffer().size() >= vbdata.len() as u64 {
                         queue.write_buffer(range.buffer(), 0, vbdata);
-                        vbbuffer = Some(vbold.clone());
+                        vbbuffer = Some(EVertexBufferRange::NotUpdatable(range));
                     }
                 }
             }
@@ -152,10 +152,10 @@ impl RendererAsync {
 
                 let mut ibbuffer = None;
                 if let Some(ibold) = self.ibs.remove(&index) {
-                    if let EVertexBufferRange::NotUpdatable(range) = &ibold {
+                    if let EVertexBufferRange::NotUpdatable(range) = ibold {
                         if range.buffer().size() >= ibdata.len() as u64 {
                             queue.write_buffer(range.buffer(), 0, ibdata);
-                            ibbuffer = Some(ibold.clone());
+                            ibbuffer = Some(EVertexBufferRange::NotUpdatable(range));
                         }
                     }
                 }

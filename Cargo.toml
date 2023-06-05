@@ -46,10 +46,10 @@ winit = { git = "http://ser.yinengyun.com:10082/tech/winit.git" }
 # [patch."https://github.com/GaiaWorld/pi_hal"]
 # pi_hal = { path = "../pi_hal" }
 
-# [patch."https://github.com/GaiaWorld/pi_render"]
-# pi_render = { path = "../pi_render" }
-# render_utils = { path = "../pi_render/crates/render_utils" }
-# render_derive = { path = "../pi_render/crates/render_derive" }
+[patch."https://github.com/GaiaWorld/pi_render"]
+pi_render = { path = "../pi_render" }
+render_utils = { path = "../pi_render/crates/render_utils" }
+render_derive = { path = "../pi_render/crates/render_derive" }
 
 # [patch."https://github.com/GaiaWorld/pi_scene"]
 # pi_scene = { path = "../pi_scene" }
