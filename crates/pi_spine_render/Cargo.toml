@@ -38,6 +38,8 @@ pi_async = "0.5.11"
 pi_slotmap_tree = "0.3"
 pi_hal = { git = "https://github.com/GaiaWorld/pi_hal.git" }
 
+js-sys = "0.3"
+
 bevy = { version="0.10", default-features = false}
 pi_bevy_render_plugin = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
 pi_bevy_asset = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
@@ -62,3 +64,4 @@ pi_bevy_ecs_extend = { path = "../../../pi_render_bevy/crates/ecs_extend" }
 pi_window_renderer = { path = "../../../pi_render_bevy/crates/window_renderer" }
 
 # [[example]]
+
