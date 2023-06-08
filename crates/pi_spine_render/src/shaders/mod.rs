@@ -20,17 +20,13 @@ pub enum EKeySpineSet {
 
 #[cfg_attr(target_arch="wasm32", wasm_bindgen)]
 #[cfg(feature = "pi_js_export")]
-pub enum KeySpineShader {
-    Colored,
-    ColoredTextured,
-    TwoColoredTextured,
-}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum KeySpineShader {
     Colored,
     ColoredTextured,
     TwoColoredTextured,
 }
+
 impl KeySpineShader {
     pub fn key(&self) -> String {
         match self {
