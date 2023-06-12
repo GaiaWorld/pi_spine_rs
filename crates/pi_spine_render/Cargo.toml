@@ -39,6 +39,7 @@ pi_slotmap_tree = "0.3"
 pi_hal = { git = "https://github.com/GaiaWorld/pi_hal.git" }
 
 js-sys = "0.3"
+js_proxy_gen_macro = { git = "https://github.com/GaiaWorld/pi_lib.git" }
 
 bevy = { version="0.10", default-features = false}
 pi_bevy_render_plugin = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }

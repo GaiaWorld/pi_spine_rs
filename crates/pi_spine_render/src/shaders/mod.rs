@@ -19,7 +19,7 @@ pub enum EKeySpineSet {
 }
 
 #[cfg_attr(target_arch="wasm32", wasm_bindgen)]
-#[cfg(feature = "pi_js_export")]
+#[pi_js_export]
 pub enum KeySpineShader {
     Colored,
     ColoredTextured,
