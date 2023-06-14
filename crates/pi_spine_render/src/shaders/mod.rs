@@ -7,9 +7,6 @@ use pi_hash::DefaultHasher;
 use pi_render::{renderer::{shader::{TShaderSetBlock, Shader, KeyShader, KeyShaderMeta, KeyShaderSetBlocks}, attributes::{KeyShaderFromAttributes, EVertexDataKind, VertexAttribute}, vertex_buffer::{VertexBufferLayouts, VertexBufferLayout, KeyVertexBuffer}, vertex_buffer_desc::VertexBufferDesc, instance::EInstanceKind, pipeline::KeyRenderPipelineState}, rhi::{device::RenderDevice, asset::RenderRes, pipeline::RenderPipeline, RenderQueue, bind_group_layout::BindGroupLayout}, asset::ASSET_SIZE_FOR_UNKOWN};
 use pi_share::Share;
 
-#[cfg_attr(target_arch="wasm32", wasm_bindgen)]
-use wasm_bindgen::prelude::wasm_bindgen;
-
 use crate::binds::param::BindParam;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,13 +15,6 @@ pub enum EKeySpineSet {
     Texture,
 }
 
-#[cfg_attr(target_arch="wasm32", wasm_bindgen)]
-#[pi_js_export]
-pub enum KeySpineShader {
-    Colored,
-    ColoredTextured,
-    TwoColoredTextured,
-}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum KeySpineShader {
     Colored,
