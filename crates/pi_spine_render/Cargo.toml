@@ -24,8 +24,6 @@ approx = "0.5"
 naga = { version = "0.11" }
 bytemuck = { version = "1.4", features = ["derive"] }
 
-wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
-
 pi_slotmap = "0.1"
 pi_map = "0.1"
 pi_hash = "0.1"
