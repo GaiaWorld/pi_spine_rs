@@ -20,7 +20,6 @@ use pi_share::Share;
 use renderer::{RendererAsync, SpineResource};
 use shaders::KeySpineShader;
 use smallvec::SmallVec;
-use wasm_bindgen::prelude::wasm_bindgen;
 
 
 pub mod binds;
