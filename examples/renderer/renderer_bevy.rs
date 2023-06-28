@@ -8,6 +8,8 @@ use pi_window_renderer::{PluginWindowRender, WindowRenderer};
 use pi_render::{asset::TAssetKeyU64, rhi::{asset::TextureRes, sampler::{SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}}, renderer::sampler::SamplerRes};
 use pi_scene_math::{Vector4, Matrix};
 use pi_spine_rs::{PluginSpineRenderer, shaders::KeySpineShader, SpineRenderContext, ecs::{ResMut, Res, Commands}, ActionListSpine, KeySpineRenderer, ActionSpine};
+use pi_async::rt::AsyncRuntime;
+use pi_hal::{init_load_cb, runtime::MULTI_MEDIA_RUNTIME, on_load};
 
 use super::{vertices::VERTICES, indices::INDICES};
 
@@ -124,6 +126,22 @@ impl TShell for Engine {
     }
 }
 
+pub struct PluginLocalLoad;
+impl Plugin for PluginLocalLoad {
+    fn build(&self, app: &mut App) {
+        
+        init_load_cb(Arc::new(|path: String| {
+            MULTI_MEDIA_RUNTIME
+                .spawn(MULTI_MEDIA_RUNTIME.alloc(), async move {
+                    log::debug!("Load {}", path);
+                    let r = std::fs::read(path.clone()).unwrap();
+                    on_load(&path, r);
+                })
+                .unwrap();
+        }));
+    }
+}
+
 pub fn run() -> Engine {
     let mut app = App::default();
 
@@ -143,10 +161,13 @@ pub fn run() -> Engine {
         app.add_plugin(bevy::winit::WinitPlugin::default());
 		// .add_plugin(WorldInspectorPlugin::new())
 		app.add_plugin(PiRenderPlugin::default());
+		app.add_plugin(PluginLocalLoad::default());
 		app.add_plugin(PluginWindowRender::default());
 		app.add_plugin(PluginSpineRenderer::default());
         app.add_startup_system(runner);
         // ;
+        
+        app.world.get_resource_mut::<WindowRenderer>().unwrap().active = true;
 
     // let rendergraph = app.world.get_resource::<PiRenderGraph>().unwrap();
     // rendergraph.in
