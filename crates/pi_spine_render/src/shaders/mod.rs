@@ -17,7 +17,7 @@ pub enum EKeySpineSet {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum KeySpineShader {
-    Colored,
+    Colored = 0,
     ColoredTextured,
     TwoColoredTextured,
 }
