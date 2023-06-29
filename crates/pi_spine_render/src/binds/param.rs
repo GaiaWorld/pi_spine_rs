@@ -1,6 +1,6 @@
 use std::{num::NonZeroU64, sync::Arc, fmt::Debug};
 
-use pi_assets::{asset::{Handle, Asset, GarbageEmpty}, mgr::AssetMgr};
+use pi_assets::{asset::{Handle, Asset, GarbageEmpty, Size}, mgr::AssetMgr};
 use pi_render::rhi::{device::RenderDevice, BufferInitDescriptor, RenderQueue, buffer::Buffer};
 use pi_share::{Share, ShareMutex};
 
@@ -73,6 +73,9 @@ impl Debug for SpineBindBuffer {
 }
 impl Asset for SpineBindBuffer {
     type Key = usize;
+}
+
+impl Size for SpineBindBuffer {
     fn size(&self) -> usize {
         BindParam::SIZE
     }
