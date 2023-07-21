@@ -8,7 +8,7 @@ use pi_window_renderer::{PluginWindowRender, WindowRenderer};
 use pi_render::{asset::TAssetKeyU64, rhi::{asset::TextureRes, sampler::{SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}}, renderer::sampler::SamplerRes};
 use pi_scene_math::{Vector4, Matrix};
 use pi_spine_rs::{PluginSpineRenderer, shaders::KeySpineShader, SpineRenderContext, ecs::{ResMut, Res, Commands}, ActionListSpine, KeySpineRenderer, ActionSpine};
-use pi_async::rt::AsyncRuntime;
+use pi_async_rt::rt::AsyncRuntime;
 use pi_hal::{init_load_cb, runtime::MULTI_MEDIA_RUNTIME, on_load};
 
 use super::{vertices::VERTICES, indices::INDICES};

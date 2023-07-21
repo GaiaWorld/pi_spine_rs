@@ -5,7 +5,7 @@ use bevy::{prelude::{ResMut, Resource, App, Plugin, Res, IntoSystemConfig, Entit
 use crossbeam::queue::SegQueue;
 use futures::FutureExt;
 use pi_assets::{mgr::{AssetMgr, LoadResult}, asset::{Handle, GarbageEmpty}};
-use pi_async::prelude::AsyncRuntime;
+use pi_async_rt::prelude::AsyncRuntime;
 use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
 use pi_bevy_render_plugin::{
@@ -594,7 +594,7 @@ fn sys_spine_texture_load(
                 let queue = queue.0.clone();
     
                 MULTI_MEDIA_RUNTIME
-                    .spawn(MULTI_MEDIA_RUNTIME.alloc(), async move {
+                    .spawn(async move {
                         let desc = ImageTextureDesc {
                             url: &k,
                             device: &device,
