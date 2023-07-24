@@ -386,8 +386,8 @@ impl RendererAsync {
                     polygon_mode: wgpu::PolygonMode::Fill,
                     front_face: wgpu::FrontFace::Ccw,
                     
-                    #[cfg(not(target_arch = "wasm32"))]
-                    unclipped_depth: true,
+                    // #[cfg(not(target_arch = "wasm32"))]
+                    // unclipped_depth: true,
 
                     cull_mode: None,
                     ..Default::default()
