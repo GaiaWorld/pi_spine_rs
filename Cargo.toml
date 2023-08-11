@@ -78,6 +78,8 @@ winit = { git = "http://ser.yinengyun.com:10082/tech/winit.git" }
 image = "=0.24.0"
 env_logger = "0.9"
 pollster = "0.2"
+half = "=2.2.1"
+bevy = { version = "0.10", default-features = false, features = ["bevy_winit"]}
 
 [net]
 git-fetch-with-cli = true

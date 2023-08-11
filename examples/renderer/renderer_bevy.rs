@@ -1,4 +1,6 @@
-use bevy::{prelude::App};
+use std::sync::Arc;
+
+use bevy::{prelude::{App, Plugin}};
 use image::GenericImageView;
 use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
@@ -132,7 +134,7 @@ impl Plugin for PluginLocalLoad {
         
         init_load_cb(Arc::new(|path: String| {
             MULTI_MEDIA_RUNTIME
-                .spawn(MULTI_MEDIA_RUNTIME.alloc(), async move {
+                .spawn(async move {
                     log::debug!("Load {}", path);
                     let r = std::fs::read(path.clone()).unwrap();
                     on_load(&path, r);
@@ -160,8 +162,9 @@ pub fn run() -> Engine {
         app.add_plugin(bevy::a11y::AccessibilityPlugin);
         app.add_plugin(bevy::winit::WinitPlugin::default());
 		// .add_plugin(WorldInspectorPlugin::new())
+        app.add_plugin(pi_bevy_asset::PiAssetPlugin::default());
 		app.add_plugin(PiRenderPlugin::default());
-		app.add_plugin(PluginLocalLoad::default());
+		app.add_plugin(PluginLocalLoad);
 		app.add_plugin(PluginWindowRender::default());
 		app.add_plugin(PluginSpineRenderer::default());
         app.add_startup_system(runner);
