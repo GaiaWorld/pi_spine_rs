@@ -124,7 +124,7 @@ impl RendererAsync {
 
             let mut vbbuffer = None;
             if let Some(vbold) = self.vbs.remove(&index) {
-                if let EVertexBufferRange::NotUpdatable(range) = vbold {
+                if let EVertexBufferRange::NotUpdatable(range, _, _) = vbold {
                     if let Some(range) = resource.vballocator.create_not_updatable_buffer(device, queue, vbdata, Some(&range)) {
                         vbbuffer = Some(range);
                     }
@@ -151,10 +151,10 @@ impl RendererAsync {
 
                 let mut ibbuffer = None;
                 if let Some(ibold) = self.ibs.remove(&index) {
-                    if let EVertexBufferRange::NotUpdatable(range) = ibold {
+                    if let EVertexBufferRange::NotUpdatable(range, start, end) = ibold {
                         if range.buffer().size() >= ibdata.len() as u64 {
                             queue.write_buffer(range.buffer(), 0, ibdata);
-                            ibbuffer = Some(EVertexBufferRange::NotUpdatable(range));
+                            ibbuffer = Some(EVertexBufferRange::NotUpdatable(range, start, end));
                         }
                     }
                 }
