@@ -78,6 +78,9 @@ impl Node for SpineRenderNode {
         commands: pi_share::ShareRefCell<wgpu::CommandEncoder>,
         _input: &'a Self::Input,
         _usage: &'a pi_bevy_render_plugin::node::ParamUsage,
+		_id: NodeId,
+		_from: &[NodeId],
+		_to: &[NodeId],
     ) -> pi_futures::BoxFuture<'a, Result<Self::Output, String>> {
         let atlas_allocator = world.get_resource::<PiSafeAtlasAllocator>().unwrap();
         let temp: Vec<ShareTargetView> = vec![];
@@ -89,7 +92,7 @@ impl Node for SpineRenderNode {
         } else {
             return async move {
                 log::warn!("SpineGraph:: None renderer");
-                Ok(SimpleInOut { target: None })
+                Ok(SimpleInOut { target: None, valid_rect: None })
             }.boxed();
         };
         
@@ -181,7 +184,7 @@ impl Node for SpineRenderNode {
                     DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
                 }
 
-                Ok(SimpleInOut { target: Some(target) })
+                Ok(SimpleInOut { target: Some(target), valid_rect: None })
             })
         } else {
             let screen = param.get(world);
@@ -214,7 +217,7 @@ impl Node for SpineRenderNode {
                     DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
                 }
 
-                Ok(SimpleInOut { target: None })
+                Ok(SimpleInOut { target: None, valid_rect: None })
             })
         }
     }
