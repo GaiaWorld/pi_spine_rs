@@ -394,7 +394,7 @@ impl RendererAsync {
                 },
                 multisample: wgpu::MultisampleState { count: 1, mask: !0, alpha_to_coverage_enabled: false },
                 depth_stencil: None,
-                target_state: vec![Some(wgpu::ColorTargetState { format: self.target_format, blend, write_mask: wgpu::ColorWrites::ALL })],
+                target_state: Some(wgpu::ColorTargetState { format: self.target_format, blend, write_mask: wgpu::ColorWrites::ALL }),
             },
         };
         
