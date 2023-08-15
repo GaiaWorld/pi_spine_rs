@@ -79,8 +79,8 @@ impl Node for SpineRenderNode {
         _input: &'a Self::Input,
         _usage: &'a pi_bevy_render_plugin::node::ParamUsage,
 		_id: NodeId,
-		_from: &'a [NodeId],
-		_to: &'a [NodeId],
+		_from: &[NodeId],
+		_to: &[NodeId],
     ) -> pi_futures::BoxFuture<'a, Result<Self::Output, String>> {
         let atlas_allocator = world.get_resource::<PiSafeAtlasAllocator>().unwrap();
         let temp: Vec<ShareTargetView> = vec![];
