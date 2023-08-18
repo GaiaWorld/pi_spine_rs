@@ -289,7 +289,7 @@ impl SingleSpinePipelinePool {
         let fs_state = wgpu::FragmentState {
             module: &shader.fs,
             entry_point: "main",
-            targets: &state.target_state,
+            targets: &[state.target_state.clone()],
         };
         let pipeline_layout = device.create_pipeline_layout(
             &wgpu::PipelineLayoutDescriptor {
