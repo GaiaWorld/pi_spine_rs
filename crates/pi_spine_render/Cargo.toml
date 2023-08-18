@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 keywords = ["scene Render"]
 
 [dependencies]
-wgpu = { version = "0.15", default-features = false }
+wgpu = { version = "0.16", default-features = false }
 env_logger = "0.9"
 log = "0.4"
 smallvec = "1.9"
@@ -21,14 +21,13 @@ lazy_static = "1.4"
 pi_spatial = { git = "https://github.com/GaiaWorld/pi_spatial.git" }
 
 approx = "0.5"
-naga = { version = "0.11" }
+naga = { version = "0.12" }
 bytemuck = { version = "1.4", features = ["derive"] }
 
 pi_slotmap = "0.1"
 pi_map = "0.1"
 pi_hash = "0.1"
 pi_share = "0.4"
-pi_graph = "0.1"
 pi_atom = { version="0.2", features = ["serde"] }
 pi_assets = "0.13"
 pi_futures = "0.1"
@@ -38,7 +37,7 @@ pi_hal = { git = "https://github.com/GaiaWorld/pi_hal.git" }
 
 js-sys = "0.3"
 
-bevy = { version="0.10", default-features = false}
+bevy = { version="0.11", default-features = false}
 pi_bevy_render_plugin = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
 pi_bevy_asset = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
 pi_bevy_ecs_extend = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }

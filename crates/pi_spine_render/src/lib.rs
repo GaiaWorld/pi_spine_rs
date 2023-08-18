@@ -1,7 +1,7 @@
 
 use std::{mem::{replace, transmute}, num::NonZeroU32};
 
-use bevy::{prelude::{ResMut, Resource, App, Plugin, Res, IntoSystemConfig, Entity, IntoSystemConfigs, Commands, SystemSet, apply_system_buffers}, ecs::system::EntityCommands, utils::tracing::Id};
+use bevy::{prelude::{Update, ResMut, Resource, App, Plugin, Res, IntoSystemConfigs, Entity, Commands, SystemSet, apply_deferred}, ecs::system::EntityCommands, utils::tracing::Id};
 use crossbeam::queue::SegQueue;
 use futures::FutureExt;
 use pi_assets::{mgr::{AssetMgr, LoadResult}, asset::{Handle, GarbageEmpty}};
@@ -493,8 +493,8 @@ impl ActionSpine {
                 // The layout of the texture
                 wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: std::num::NonZeroU32::new(4 * width),
-                    rows_per_image: std::num::NonZeroU32::new(height),
+                    bytes_per_row: std::num::NonZeroU32::new(4 * width).map(|r| {r.get()}),
+                    rows_per_image: std::num::NonZeroU32::new(height).map(|r| {r.get()}),
                 },
                 wgpu::Extent3d {
                     width,
@@ -508,7 +508,7 @@ impl ActionSpine {
                 dimension: Some(wgpu::TextureViewDimension::D2),
                 aspect: wgpu::TextureAspect::All,
                 base_mip_level: 0,
-                mip_level_count:  NonZeroU32::new(0),
+                mip_level_count: None,
                 base_array_layer: 0,
                 array_layer_count: None,
             });
@@ -665,6 +665,7 @@ impl Plugin for PluginSpineRenderer {
             .insert_resource(SpineTextureLoad::default());
 
         app.add_systems(
+			Update,
             (
                 sys_spine_cmds,
                 sys_spine_render_apply,
@@ -672,7 +673,7 @@ impl Plugin for PluginSpineRenderer {
             ).chain().in_set(SpineSystemSet).before(PiRenderSystemSet)
         );
 
-        app.add_system(apply_system_buffers.in_set(SpineSystemSet));
+        app.add_system(apply_deferred.in_set(SpineSystemSet));
 
         // log::warn!("PluginSpineRenderer");
     }
