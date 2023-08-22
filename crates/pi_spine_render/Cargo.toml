@@ -18,7 +18,7 @@ futures = "0.3"
 
 parry3d = "0.13"
 lazy_static = "1.4"
-pi_spatial = { git = "https://github.com/GaiaWorld/pi_spatial.git" }
+pi_spatial = "0.4"
 
 approx = "0.5"
 naga = { version = "0.12" }
@@ -33,19 +33,19 @@ pi_assets = "0.13"
 pi_futures = "0.1"
 pi-async-rt = "0.1"
 pi_slotmap_tree = "0.3"
-pi_hal = { git = "https://github.com/GaiaWorld/pi_hal.git" }
+pi_hal = {version  ="0.1", registry = "yn"}
 
 js-sys = "0.3"
 
 bevy = { version="0.11", default-features = false}
-pi_bevy_render_plugin = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
-pi_bevy_asset = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
-pi_bevy_ecs_extend = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
-pi_window_renderer = { git = "https://github.com/GaiaWorld/pi_render_bevy.git" }
+pi_bevy_render_plugin = {version  ="0.1", registry = "yn"}
+pi_bevy_asset = {version  ="0.1", registry = "yn"}
+pi_bevy_ecs_extend = {version  ="0.1", registry = "yn"}
+pi_window_renderer = {version  ="0.1", registry = "yn"}
 
-pi_render = { git = "https://github.com/GaiaWorld/pi_render", branch="bevy_shader" }
-render_utils = { git = "https://github.com/GaiaWorld/pi_render", branch="bevy_shader" }
-render_derive = { git = "https://github.com/GaiaWorld/pi_render", branch="bevy_shader" }
+pi_render = {version  ="0.1", registry = "yn"}
+render_utils = {version  ="0.1", registry = "yn"}
+render_derive = {version  ="0.1", registry = "yn"}
 
 pi_scene_math = { git = "https://github.com/GaiaWorld/pi_scene" }
 
@@ -54,11 +54,11 @@ pi_render = { path = "../../../pi_render" }
 render_utils = { path = "../../../pi_render/crates/render_utils" }
 render_derive = { path = "../../../pi_render/crates/render_derive" }
 
-[patch."https://github.com/GaiaWorld/pi_render_bevy"]
-pi_bevy_render_plugin = { path = "../../../pi_render_bevy/crates/render" }
-pi_bevy_asset = { path = "../../../pi_render_bevy/crates/asset" }
-pi_bevy_ecs_extend = { path = "../../../pi_render_bevy/crates/ecs_extend" }
-pi_window_renderer = { path = "../../../pi_render_bevy/crates/window_renderer" }
+[patch."https://github.com/GaiaWorld/pi_bevy"]
+pi_bevy_render_plugin = { path = "../../../pi_bevy/crates/render" }
+pi_bevy_asset = { path = "../../../pi_bevy/crates/asset" }
+pi_bevy_ecs_extend = { path = "../../../pi_bevy/crates/ecs_extend" }
+pi_window_renderer = { path = "../../../pi_bevy/crates/window_renderer" }
 
 # [[example]]
 
