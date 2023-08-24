@@ -15,7 +15,6 @@ members = ["crates/*"]
 pi_spine_render = { path = "crates/pi_spine_render" }
 
 pi_render = {version  ="0.1", registry = "yn"}
-render_utils = {version  ="0.1", registry = "yn"}
 render_derive = {version  ="0.1", registry = "yn"}
 
 pi_bevy_render_plugin = {version  ="0.1", registry = "yn"}
@@ -25,8 +24,6 @@ pi_window_renderer = {version  ="0.1", registry = "yn"}
 
 bevy = { version = "0.11", default-features = false }
 pi_scene_math = { git = "https://github.com/GaiaWorld/pi_scene" }
-pi_animation = { git = "https://github.com/GaiaWorld/pi_animation.git" }
-pi_curves = { git = "https://github.com/GaiaWorld/pi_curves.git" }
 
 pi_map = "0.1"
 pi_hash = "0.1"
@@ -37,46 +34,38 @@ pi_hal = {version  ="0.1", registry = "yn"}
 pi-async-rt                = "0.1"
 
 wgpu = { version = "0.16", default-features = false }
-env_logger = "0.9"
 log = "0.4"
 smallvec = "1.9"
 crossbeam = "0.8"
 futures = "0.3"
-winit = {version  ="0.27", registry = "yn"}
-
-# [patch."https://github.com/GaiaWorld/pi_hal"]
-# pi_hal = { path = "../pi_hal" }
-
-[patch."https://github.com/GaiaWorld/pi_render"]
-pi_render = { path = "../pi_render" }
-render_utils = { path = "../pi_render/crates/render_utils" }
-render_derive = { path = "../pi_render/crates/render_derive" }
 
 # [patch."https://github.com/GaiaWorld/pi_scene"]
 # pi_scene = { path = "../pi_scene" }
 # pi_scene_math = { path = "../pi_scene/crates/pi_scene_math" }
 
-# [patch."https://github.com/GaiaWorld/pi_animation"]
-# pi_animation = { path = "../pi_animation" }
+# [patch.crates-io]
+# pi_async_graph = { path = "../pi_async_graph" }
 
-# [patch."https://github.com/GaiaWorld/pi_curves"]
-# pi_curves = { path = "../pi_curves" }
-
-# [patch."http://ser.yinengyun.com:10082/tech/winit.git"]
-# winit = { path = "../winit" }
-
-[patch."https://github.com/GaiaWorld/pi_bevy"]
+[patch.yn]
+# bevy
 pi_bevy_render_plugin = { path = "../pi_bevy/crates/render" }
 pi_bevy_asset = { path = "../pi_bevy/crates/asset" }
 pi_bevy_ecs_extend = { path = "../pi_bevy/crates/ecs_extend" }
 pi_window_renderer = { path = "../pi_bevy/crates/window_renderer" }
 
-# [patch.crates-io]
-# pi_async_graph = { path = "../pi_async_graph" }
+# pi_render
+pi_render = { path = "../pi_render" }
+render_utils = { path = "../pi_render/crates/render_utils" }
+render_derive = { path = "../pi_render/crates/render_derive" }
+
+# winit = { path = "../winit" }
+# pi_curves = { path = "../pi_curves" }
+# pi_animation = { path = "../pi_animation" }
+# pi_hal = { path = "../pi_hal" }
 
 [dev-dependencies]
 image = "=0.24.0"
-env_logger = "0.9"
+# env_logger = "0.9"
 pollster = "0.2"
 half = "=2.2.1"
 bevy = { version = "0.11", default-features = false, features = ["bevy_winit"]}

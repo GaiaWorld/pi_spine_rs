@@ -49,16 +49,5 @@ render_derive = {version  ="0.1", registry = "yn"}
 
 pi_scene_math = { git = "https://github.com/GaiaWorld/pi_scene" }
 
-[patch."https://github.com/GaiaWorld/pi_render"]
-pi_render = { path = "../../../pi_render" }
-render_utils = { path = "../../../pi_render/crates/render_utils" }
-render_derive = { path = "../../../pi_render/crates/render_derive" }
-
-[patch."https://github.com/GaiaWorld/pi_bevy"]
-pi_bevy_render_plugin = { path = "../../../pi_bevy/crates/render" }
-pi_bevy_asset = { path = "../../../pi_bevy/crates/asset" }
-pi_bevy_ecs_extend = { path = "../../../pi_bevy/crates/ecs_extend" }
-pi_window_renderer = { path = "../../../pi_bevy/crates/window_renderer" }
-
 # [[example]]
 
