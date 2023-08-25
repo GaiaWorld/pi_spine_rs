@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use bevy::{prelude::{App, Plugin}};
+use bevy::{prelude::{App, Plugin, Startup}};
 use image::GenericImageView;
 use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
@@ -24,7 +24,7 @@ fn runner(
     asset_textures: Res<ShareAssetMgr<TextureRes>>,
     asset_samplers: Res<ShareAssetMgr<SamplerRes>>,
     mut cmds: ResMut<ActionListSpine>,
-    mut final_render: Res<WindowRenderer>,
+    final_render: Res<WindowRenderer>,
 ) {
     let mut entitycmd = commands.spawn_empty();
     let id_renderer = KeySpineRenderer(entitycmd.id());
@@ -157,17 +157,17 @@ pub fn run() -> Engine {
 		// 	filter: "wgpu=info,pi_ui_render::components::user=debug".to_string(),
 		// 	level: bevy::log::Level::INFO,
 		// })
-		app.add_plugin(bevy::input::InputPlugin::default());
-		app.add_plugin(window_plugin);
-        app.add_plugin(bevy::a11y::AccessibilityPlugin);
-        app.add_plugin(bevy::winit::WinitPlugin::default());
+		app.add_plugins(bevy::input::InputPlugin::default());
+		app.add_plugins(window_plugin);
+        app.add_plugins(bevy::a11y::AccessibilityPlugin);
+        app.add_plugins(bevy::winit::WinitPlugin::default());
 		// .add_plugin(WorldInspectorPlugin::new())
-        app.add_plugin(pi_bevy_asset::PiAssetPlugin::default());
-		app.add_plugin(PiRenderPlugin::default());
-		app.add_plugin(PluginLocalLoad);
-		app.add_plugin(PluginWindowRender::default());
-		app.add_plugin(PluginSpineRenderer::default());
-        app.add_startup_system(runner);
+        app.add_plugins(pi_bevy_asset::PiAssetPlugin::default());
+		app.add_plugins(PiRenderPlugin::default());
+		app.add_plugins(PluginLocalLoad);
+		app.add_plugins(PluginWindowRender::default());
+		app.add_plugins(PluginSpineRenderer::default());
+        app.add_systems(Startup, runner);
         // ;
         
         app.world.get_resource_mut::<WindowRenderer>().unwrap().active = true;

@@ -1,29 +1,28 @@
 use std::{ops::Range, sync::Arc};
 
-use bevy::prelude::{Resource};
+use bevy::prelude::Resource;
 use pi_assets::{asset::{Handle, GarbageEmpty}, mgr::AssetMgr};
 use pi_hash::XHashMap;
 
 
-use pi_map::{vecmap::VecMap, smallvecmap::SmallVecMap};
+use pi_map::smallvecmap::SmallVecMap;
 use pi_render::{
     renderer::{
         draw_obj::{DrawObj, DrawBindGroups, DrawBindGroup},
         sampler::SamplerRes,
         pipeline::KeyRenderPipelineState,
         vertices::{RenderVertices, EVerticesBufferUsage, RenderIndices},
-        draw_obj_list::DrawList, vertex_buffer::{VertexBufferAllocator, EVertexBufferRange},
-        texture::*
+        draw_obj_list::DrawList, vertex_buffer::{VertexBufferAllocator, EVertexBufferRange}
     },
     rhi::{
         asset::{TextureRes, RenderRes},
         device::RenderDevice, RenderQueue, bind_group::BindGroup, PrimitiveState,
         sampler::SamplerDesc, options::RenderOptions
-    }, asset::TAssetKeyU64
+    }
 };
 use pi_share::Share;
 
-use crate::{shaders::{KeySpineShader, KeySpinePipeline, SingleSpinePipelinePool, SingleSpineBindGroupLayout}, binds::param::{BindBufferAllocator, SpineBindBufferUsage}, bind_groups::SpineBindGroup, FORMAT};
+use crate::{shaders::{KeySpineShader, KeySpinePipeline, SingleSpinePipelinePool, SingleSpineBindGroupLayout}, binds::param::{BindBufferAllocator, SpineBindBufferUsage}, bind_groups::SpineBindGroup, vertex_buffer::{SpineVertexBufferAllocator, SpineIndicesBufferAllocator}};
 
 
 #[derive(Resource)]
@@ -33,15 +32,22 @@ pub struct SpineResource {
     vballocator: VertexBufferAllocator,
     bindallocator: BindBufferAllocator,
     asset_mgr_bindgroup: Share<AssetMgr<RenderRes<BindGroup>>>,
+    pub(crate) verticeallocator: SpineVertexBufferAllocator,
+    pub(crate) indicesallocator: SpineIndicesBufferAllocator,
 }
 impl SpineResource {
     pub fn new(device: &RenderDevice, vbcache: (usize, usize), bindcache: (usize, usize), bindgroupcache: (usize, usize)) -> Self {
+        let vballocator = VertexBufferAllocator::new(vbcache.0, vbcache.1);
+        let verticeallocator = SpineVertexBufferAllocator::new(1024 * 1024);
+        let indicesallocator = SpineIndicesBufferAllocator::new(1024 * 1024);
         Self {
             pipelines: SingleSpinePipelinePool::new(device),
             bind_group_layouts: SingleSpineBindGroupLayout::new(device),
-            vballocator: VertexBufferAllocator::new(vbcache.0, vbcache.1),
+            vballocator,
             bindallocator: BindBufferAllocator::new(bindcache.0, bindcache.1),
             asset_mgr_bindgroup: AssetMgr::<RenderRes::<BindGroup>>::new(GarbageEmpty(), false, bindgroupcache.0, bindgroupcache.1),
+            verticeallocator,
+            indicesallocator
         }
     }
 }
@@ -63,8 +69,8 @@ pub struct RendererAsync {
     pub(crate) bind_groups: Vec<SpineBindGroup>,
     pub(crate) draws: Vec<SpineDraw>,
     pub(crate) drawobjs: DrawList,
-    pub(crate) vbs: XHashMap<usize, EVertexBufferRange>,
-    pub(crate) ibs: XHashMap<usize, EVertexBufferRange>,
+    pub(crate) _vbs: XHashMap<usize, EVertexBufferRange>,
+    pub(crate) _ibs: XHashMap<usize, EVertexBufferRange>,
     pub(crate) shader: Option<KeySpineShader>,
     pub(crate) blend: wgpu::BlendState,
     pub(crate) enableblend: bool,
@@ -98,8 +104,8 @@ impl RendererAsync {
             textures: XHashMap::default(),
             samplers: XHashMap::default(),
             target_format: wgpu::TextureFormat::Bgra8Unorm,
-            vbs: XHashMap::default(),
-            ibs: XHashMap::default(),
+            _vbs: XHashMap::default(),
+            _ibs: XHashMap::default(),
         }
     }
     pub fn drawlist(
@@ -107,8 +113,8 @@ impl RendererAsync {
         device: &RenderDevice,
         queue: &RenderQueue,
         resource: &mut SpineResource,
-        asset_samplers: &Share<AssetMgr<SamplerRes>>,
-        asset_textures: &Share<AssetMgr<TextureRes>>,
+        _asset_samplers: &Share<AssetMgr<SamplerRes>>,
+        _asset_textures: &Share<AssetMgr<TextureRes>>,
     ) -> &DrawList {
         let mut binds = vec![];
         self.uniform_param.drain(..).for_each(|uniform_param| {
@@ -122,56 +128,37 @@ impl RendererAsync {
         self.draws.drain(..).for_each(|draw| {
             let vbdata = bytemuck::cast_slice(&draw.vertices);
 
-            let mut vbbuffer = None;
-            if let Some(vbold) = self.vbs.remove(&index) {
-                if let EVertexBufferRange::NotUpdatable(range, _, _) = vbold {
-                    if let Some(range) = resource.vballocator.create_not_updatable_buffer(device, queue, vbdata, Some(&range)) {
-                        vbbuffer = Some(range);
-                    }
-                }
-            }
-            let vbbuffer = if let Some(vbbuffer) = vbbuffer {
-                vbbuffer
-            }
-            else {
-                if let Some(vbbuffer) = resource.vballocator.create_not_updatable_buffer(device, queue, vbdata, None) {
-                    vbbuffer
-                } else {
-                    return;
-                }
+            // let mut vbbuffer = None;
+            // if let Some(vbold) = self.vbs.remove(&index) {
+            //     if let EVertexBufferRange::NotUpdatable(range, _, _) = vbold {
+            //         if let Some(range) = resource.verticeallocator.collect(vbdata, draw.shader.vertices_bytes_per_element(), &mut resource.vballocator, device, queue) {
+            //             vbbuffer = Some(range);
+            //         }
+            //     }
+            // }
+
+            let buffer = if let Some(range) = resource.verticeallocator.collect(vbdata, draw.shader.vertices_bytes_per_element(), &mut resource.vballocator, device, queue) {
+                EVerticesBufferUsage::EVBRange(Arc::new(EVertexBufferRange::NotUpdatable(range.0, range.1, range.2)))
+            } else {
+                return;
             };
 
-            self.vbs.insert(index, vbbuffer.clone());
+            // self.vbs.insert(index, vbbuffer.clone());
             let mut vb = SmallVecMap::default();
-            vb.insert(0, RenderVertices { slot: 0, buffer: EVerticesBufferUsage::EVBRange(Arc::new(vbbuffer)), buffer_range: Some(Range { start: 0, end: (draw.verticeslen * 4) as u64  }), size_per_value: draw.shader.vertices_bytes_per_element() as u64 });
-
+            vb.insert(0, RenderVertices { slot: 0, buffer, buffer_range: None, size_per_value: draw.shader.vertices_bytes_per_element() as u64 });
 
             let ib = if let Some(indices) = &draw.indices {
                 let ibdata = bytemuck::cast_slice(indices);
 
-                let mut ibbuffer = None;
-                if let Some(ibold) = self.ibs.remove(&index) {
-                    if let EVertexBufferRange::NotUpdatable(range, start, end) = ibold {
-                        if range.buffer().size() >= ibdata.len() as u64 {
-                            queue.write_buffer(range.buffer(), 0, ibdata);
-                            ibbuffer = Some(EVertexBufferRange::NotUpdatable(range, start, end));
-                        }
-                    }
-                }
-                let ib = if let Some(ibbuffer) = ibbuffer {
-                    ibbuffer
-                }
-                else {
-                    if let Some(ibbuffer) = resource.vballocator.create_not_updatable_buffer_for_index(device, queue, ibdata) {
-                        ibbuffer
-                    } else {
-                        return;
-                    }
+                let buffer = if let Some(range) = resource.indicesallocator.collect(ibdata, 2, &mut resource.vballocator, device, queue) {
+                    EVerticesBufferUsage::EVBRange(Arc::new(EVertexBufferRange::NotUpdatable(range.0, range.1, range.2)))
+                } else {
+                    return;
                 };
 
-                self.ibs.insert(index, ib.clone());
+                // self.ibs.insert(index, ib.clone());
 
-                let temp = RenderIndices { buffer: EVerticesBufferUsage::EVBRange(Arc::new(ib)), buffer_range: Some(Range { start: 0, end: (draw.indiceslen * 2) as u64  }), format: wgpu::IndexFormat::Uint16 };
+                let temp = RenderIndices { buffer, buffer_range: None, format: wgpu::IndexFormat::Uint16 };
                 Some(temp)
             } else {
                 None
@@ -258,7 +245,7 @@ impl RendererAsync {
         self.draws.clear();
         self.drawobjs.list.clear();
     }
-    pub fn viewport(&mut self, viewport: &[f32]) {
+    pub fn viewport(&mut self, _viewport: &[f32]) {
         //
     }
     
@@ -334,7 +321,7 @@ impl RendererAsync {
         indices: Option<Vec<u16>>,
         vertices_len: u32,
         indices_len: u32,
-        renderopt: &RenderOptions,
+        _renderopt: &RenderOptions,
     ) {
         let shader = if let Some(shader) = &self.shader {
             shader

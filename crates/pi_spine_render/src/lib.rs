@@ -1,7 +1,7 @@
 
-use std::{mem::{replace, transmute}, num::NonZeroU32};
+use std::mem::replace;
 
-use bevy::{prelude::{Update, ResMut, Resource, App, Plugin, Res, IntoSystemConfigs, Entity, Commands, SystemSet, apply_deferred}, ecs::system::EntityCommands, utils::tracing::Id};
+use bevy::prelude::{Update, ResMut, Resource, App, Plugin, Res, IntoSystemConfigs, Entity, Commands, SystemSet, apply_deferred};
 use crossbeam::queue::SegQueue;
 use futures::FutureExt;
 use pi_assets::{mgr::{AssetMgr, LoadResult}, asset::{Handle, GarbageEmpty}};
@@ -9,13 +9,13 @@ use pi_async_rt::prelude::AsyncRuntime;
 use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
 use pi_bevy_render_plugin::{
-    PiRenderDevice, PiRenderQueue, node::Node, PiSafeAtlasAllocator, SimpleInOut, PiScreenTexture, PiClearOptions, PiRenderGraph, NodeId, GraphError, PiRenderSystemSet, component::GraphId, PiRenderOptions,
+    PiRenderDevice, PiRenderQueue, node::Node, PiSafeAtlasAllocator, SimpleInOut, PiClearOptions, PiRenderGraph, NodeId, GraphError, PiRenderSystemSet, component::GraphId, PiRenderOptions,
     constant::texture_sampler::*
 };
 use pi_window_renderer::WindowRenderer;
 use pi_hal::{runtime::MULTI_MEDIA_RUNTIME, loader::AsyncLoader};
 use pi_hash::XHashMap;
-use pi_render::{rhi::{sampler::{SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}, asset::{TextureRes, ImageTextureDesc}, device}, asset::TAssetKeyU64, renderer::{sampler::SamplerRes, draw_obj_list::DrawList}, components::view::target_alloc::{ShareTargetView, TargetDescriptor, TextureDescriptor}};
+use pi_render::{rhi::{sampler::{SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}, asset::{TextureRes, ImageTextureDesc}}, asset::TAssetKeyU64, renderer::{sampler::SamplerRes, draw_obj_list::DrawList}, components::view::target_alloc::{ShareTargetView, TargetDescriptor, TextureDescriptor}};
 use pi_share::Share;
 use renderer::{RendererAsync, SpineResource};
 use shaders::KeySpineShader;
@@ -129,7 +129,7 @@ impl Node for SpineRenderNode {
                 let target = atlas_allocator.allocate(renderer.width, renderer.height, target_type, temp.iter());
                 
                 {
-                    let mut renderpass = encoder.begin_render_pass(
+                    let _renderpass = encoder.begin_render_pass(
                         &wgpu::RenderPassDescriptor {
                             label: Some("RenderNode"),
                             color_attachments: &[
@@ -265,12 +265,12 @@ pub fn sys_spine_cmds(
     mut cmds: ResMut<ActionListSpine>,
     mut clearopt: ResMut<PiClearOptions>,
     mut renderers: ResMut<SpineRenderContext>,
-    mut renderopt: Res<PiRenderOptions>,
+    renderopt: Res<PiRenderOptions>,
     mut commands: Commands,
 ) {
     clearopt.color.g = 0.;
     let mut list = cmds.drain();
-    let len = list.len();
+    // let len = list.len();
     let mut index = 0;
     list.drain(..).for_each(|cmd| {
         index += 1;
@@ -348,7 +348,9 @@ pub fn sys_spine_render_apply(
     // log::warn!("Apply: {:?}", renderers.list.len());
     renderers.list.iter_mut().for_each(|(_, v)| {
         v.render.drawlist(&device, &queue, &mut resource, &asset_samplers, &asset_textures);
-    })
+    });
+    resource.verticeallocator.upload(&queue);
+    resource.indicesallocator.upload(&queue);
 }
 
 // pub trait TInterfaceSpine: TShell {
