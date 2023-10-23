@@ -33,7 +33,7 @@ pi_atom = { version = "0.2", features = ["serde"] }
 pi_hal = {version  ="0.1", registry = "yn"}
 pi-async-rt                = "0.1"
 
-wgpu = { version = "0.16", default-features = false }
+wgpu = { version = "0.1", registry = "yn", package = "pi_wgpu"}
 log = "0.4"
 smallvec = "1.9"
 crossbeam = "0.8"
@@ -73,6 +73,8 @@ pollster = "0.2"
 half = "=2.2.1"
 bevy = { version = "0.11", default-features = false, features = ["bevy_winit"]}
 winit = { path = "../winit" }
+wgpu = { version = "0.1", registry = "yn", package = "pi_wgpu", features = ["wgpu"]}
+wgpu1 = { version = "0.16", package = "wgpu", default-features = false, features = ["glsl"] }
 
 [net]
 git-fetch-with-cli = true
