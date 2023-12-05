@@ -12,7 +12,7 @@ use pi_bevy_render_plugin::{
     PiRenderDevice, PiRenderQueue, node::Node, PiSafeAtlasAllocator, SimpleInOut, PiClearOptions, PiRenderGraph, NodeId, GraphError, PiRenderSystemSet, component::GraphId, PiRenderOptions,
     constant::texture_sampler::*
 };
-use pi_window_renderer::WindowRenderer;
+// use pi_window_renderer::WindowRenderer;
 use pi_hal::{runtime::MULTI_MEDIA_RUNTIME, loader::AsyncLoader};
 use pi_hash::XHashMap;
 use pi_render::{rhi::{sampler::{SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}, asset::{TextureRes, ImageTextureDesc}}, asset::TAssetKeyU64, renderer::{sampler::SamplerRes, draw_obj_list::DrawList}, components::view::target_alloc::{ShareTargetView, TargetDescriptor, TextureDescriptor}};
@@ -68,7 +68,7 @@ impl Node for SpineRenderNode {
 
     type Output = SimpleInOut;
 
-    type Param = Res<'static, WindowRenderer>;
+    type Param = ();
 
     fn run<'a>(
         &'a mut self,
@@ -187,38 +187,43 @@ impl Node for SpineRenderNode {
                 Ok(SimpleInOut { target: Some(target), valid_rect: None })
             })
         } else {
-            let screen = param.get(world);
-
+            
             Box::pin(async move {
-                if let Some(view) = screen.view() {
-                    let mut encoder = commands.0.as_ref().borrow_mut();
-                    let mut renderpass = encoder.begin_render_pass(
-                        &wgpu::RenderPassDescriptor {
-                            label: None,
-                            color_attachments: &[
-                                Some(
-                                    wgpu::RenderPassColorAttachment {
-                                        view: &view,
-                                        resolve_target: None,
-                                        ops: wgpu::Operations {
-                                            load: wgpu::LoadOp::Load,
-                                            store: true,
-                                        }
-                                    }
-                                )
-                            ],
-                            depth_stencil_attachment: None,
-                        }
-                    );
-                    
-                    // renderpass.set_viewport(x, y, w, h, min_depth, max_depth);
-                    // renderpass.set_scissor_rect(x as u32, y as u32, w as u32, h as u32);
-                    // log::warn!("SpineGraph Draws: {:?}", renderer.render.drawobjs.list.len());
-                    DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
-                }
-
                 Ok(SimpleInOut { target: None, valid_rect: None })
             })
+
+            // let screen = param.get(world);
+
+            // Box::pin(async move {
+            //     if let Some(view) = screen.view() {
+            //         let mut encoder = commands.0.as_ref().borrow_mut();
+            //         let mut renderpass = encoder.begin_render_pass(
+            //             &wgpu::RenderPassDescriptor {
+            //                 label: None,
+            //                 color_attachments: &[
+            //                     Some(
+            //                         wgpu::RenderPassColorAttachment {
+            //                             view: &view,
+            //                             resolve_target: None,
+            //                             ops: wgpu::Operations {
+            //                                 load: wgpu::LoadOp::Load,
+            //                                 store: true,
+            //                             }
+            //                         }
+            //                     )
+            //                 ],
+            //                 depth_stencil_attachment: None,
+            //             }
+            //         );
+                    
+            //         // renderpass.set_viewport(x, y, w, h, min_depth, max_depth);
+            //         // renderpass.set_scissor_rect(x as u32, y as u32, w as u32, h as u32);
+            //         // log::warn!("SpineGraph Draws: {:?}", renderer.render.drawobjs.list.len());
+            //         DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
+            //     }
+
+            //     Ok(SimpleInOut { target: None, valid_rect: None })
+            // })
         }
     }
 }
@@ -394,12 +399,12 @@ impl ActionSpine {
         let key = String::from(name.as_str());
         match render_graph.add_node(key.clone(), SpineRenderNode(id)) {
             Ok(v) => {
-                if to_screen {
-                    render_graph.add_depend(WindowRenderer::CLEAR_KEY, key.clone());
-                    render_graph.add_depend(key, WindowRenderer::KEY);
-                }
+                // if to_screen {
+                //     render_graph.add_depend(WindowRenderer::CLEAR_KEY, key.clone());
+                //     render_graph.add_depend(key, WindowRenderer::KEY);
+                // }
         
-                render_graph.dump_graphviz();
+                // render_graph.dump_graphviz();
                 Ok(v)
             },
             Err(e) => {

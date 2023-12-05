@@ -6,7 +6,7 @@ use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
 use pi_bevy_ecs_extend::TShell;
 use pi_bevy_render_plugin::{PiRenderPlugin, PiRenderGraph, PiRenderDevice, PiRenderQueue};
-use pi_window_renderer::{PluginWindowRender, WindowRenderer};
+// use pi_window_renderer::{PluginWindowRender, WindowRenderer};
 use pi_render::{asset::TAssetKeyU64, rhi::{asset::TextureRes, sampler::{SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}}, renderer::sampler::SamplerRes};
 use pi_scene_math::{Vector4, Matrix};
 use pi_spine_rs::{PluginSpineRenderer, shaders::KeySpineShader, SpineRenderContext, ecs::{ResMut, Res, Commands}, ActionListSpine, KeySpineRenderer, ActionSpine};
@@ -24,11 +24,11 @@ fn runner(
     asset_textures: Res<ShareAssetMgr<TextureRes>>,
     asset_samplers: Res<ShareAssetMgr<SamplerRes>>,
     mut cmds: ResMut<ActionListSpine>,
-    final_render: Res<WindowRenderer>,
+    // final_render: Res<WindowRenderer>,
 ) {
     let mut entitycmd = commands.spawn_empty();
     let id_renderer = KeySpineRenderer(entitycmd.id());
-    ActionSpine::create_spine_renderer(id_renderer, None, &mut ctx, final_render.format());
+    ActionSpine::create_spine_renderer(id_renderer, None, &mut ctx, wgpu::TextureFormat::Bgra8Unorm);
 
     match ActionSpine::spine_renderer_apply(id_renderer, Atom::from("TestSpine"), true,  &mut render_graph) {
         Ok(nodeid) => { 
