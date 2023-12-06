@@ -1,7 +1,7 @@
 
 use std::mem::replace;
 
-use bevy::prelude::{Update, ResMut, Resource, App, Plugin, Res, IntoSystemConfigs, Entity, Commands, SystemSet, apply_deferred};
+use bevy::{prelude::{Update, ResMut, Resource, App, Plugin, Res, IntoSystemConfigs, Entity, Commands, SystemSet, apply_deferred}, ecs::system::Query};
 use crossbeam::queue::SegQueue;
 use futures::FutureExt;
 use pi_assets::{mgr::{AssetMgr, LoadResult}, asset::{Handle, GarbageEmpty}};
@@ -251,6 +251,12 @@ impl SpineRenderContext {
 
 #[derive(Clone)]
 pub enum ESpineCommand {
+    Create(KeySpineRenderer, String, Option<(u32, u32)>, wgpu::TextureFormat),
+    Dispose(KeySpineRenderer),
+    TextureLoad(Atom),
+    TextureRecord(KeySpineRenderer, Handle<TextureRes>),
+    SamplerRecord(KeySpineRenderer, SamplerDesc, Handle<SamplerRes>),
+    RemoveTextureRecord(KeySpineRenderer, u64),
     Reset(KeySpineRenderer),
     RenderSize(KeySpineRenderer, u32, u32),
     Shader(KeySpineRenderer, Option<KeySpineShader>),
@@ -271,6 +277,9 @@ pub fn sys_spine_cmds(
     mut clearopt: ResMut<PiClearOptions>,
     mut renderers: ResMut<SpineRenderContext>,
     renderopt: Res<PiRenderOptions>,
+    mut graphic: ResMut<PiRenderGraph>,
+    mut texloader: ResMut<SpineTextureLoad>,
+    nodes: Query<&GraphId>,
     mut commands: Commands,
 ) {
     clearopt.color.g = 0.;
@@ -280,6 +289,50 @@ pub fn sys_spine_cmds(
     list.drain(..).for_each(|cmd| {
         index += 1;
         match cmd {
+            ESpineCommand::Create(id, name, rendersize, format) => {
+                ActionSpine::create_spine_renderer(id, rendersize, &mut renderers, format);
+                match ActionSpine::spine_renderer_apply(id, pi_atom::Atom::from(name), rendersize.is_none(), &mut graphic) {
+                    Ok(nodeid) => {
+                        if let Some(mut cmd) = commands.get_entity(id.0) {
+                            cmd.insert(GraphId(nodeid));
+                        }
+                    },
+                    Err(e) => {
+                        log::warn!("Spine render_graph Err {:?}", e);
+                    },
+                }
+            },
+            ESpineCommand::Dispose(id_renderer) => {
+                if let Ok(nodeid) = nodes.get(id_renderer.0) {
+                    graphic.remove_node(nodeid.0);
+                }
+                ActionSpine::dispose_spine_renderer(id_renderer, &mut renderers);
+                if let Some(mut cmds) = commands.get_entity(id_renderer.0) {
+                    cmds.despawn();
+                }
+            },
+            ESpineCommand::TextureLoad(key) => {
+                texloader.load(key);
+            },
+            ESpineCommand::TextureRecord(id_renderer, val) => {
+                if let Some(renderer) = renderers.get_mut(id_renderer) {
+                    // log::warn!("Cmd: Texture");
+                    let key_u64 = val.key();
+                    renderer.render_mut().record_texture(*key_u64, val);
+                }
+            },
+            ESpineCommand::SamplerRecord(id_renderer, samplerdesc, val) => {
+                if let Some(renderer) = renderers.get_mut(id_renderer) {
+                    // log::warn!("Cmd: Texture");
+                    renderer.render_mut().record_sampler(samplerdesc, val);
+                }
+            },
+            ESpineCommand::RemoveTextureRecord(id_renderer, key) => {
+                if let Some(renderer) = renderers.get_mut(id_renderer) {
+                    // log::warn!("Cmd: Texture");
+                    renderer.render_mut().remove_texture(key);
+                }
+            },
             ESpineCommand::Uniform(id, val) => {
                 if let Some(renderer) = renderers.list.get_mut(&id) {
                     // log::warn!("Cmd: Uniform");
