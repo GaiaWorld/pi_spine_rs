@@ -13,7 +13,7 @@ use pi_bevy_render_plugin::{
     constant::texture_sampler::*
 };
 // use pi_window_renderer::WindowRenderer;
-use pi_hal::{runtime::MULTI_MEDIA_RUNTIME, loader::AsyncLoader};
+use pi_hal::{runtime::RENDER_RUNTIME, loader::AsyncLoader};
 use pi_hash::XHashMap;
 use pi_render::{rhi::{sampler::{SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}, asset::{TextureRes, ImageTextureDesc}}, asset::TAssetKeyU64, renderer::{sampler::SamplerRes, draw_obj_list::DrawList}, components::view::target_alloc::{ShareTargetView, TargetDescriptor, TextureDescriptor}};
 use pi_share::Share;
@@ -656,7 +656,7 @@ fn sys_spine_texture_load(
                 let device = device.0.clone();
                 let queue = queue.0.clone();
     
-                MULTI_MEDIA_RUNTIME
+                RENDER_RUNTIME
                     .spawn(async move {
                         let desc = ImageTextureDesc {
                             url: &k,
