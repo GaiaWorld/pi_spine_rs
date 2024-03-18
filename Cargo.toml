@@ -25,11 +25,11 @@ pi_window_renderer = {version  ="0.1", registry = "yn"}
 bevy = { version = "0.11", default-features = false }
 pi_scene_math = { git = "https://github.com/GaiaWorld/pi_scene" }
 
-pi_map = "0.1"
+pi_map = "0.2"
 pi_hash = "0.1"
 pi_assets = "0.13"
 pi_share = "0.4"
-pi_atom = { version = "0.2", features = ["serde"] }
+pi_atom = { version = "0.5", features = ["serde"] }
 pi_hal = {version  ="0.1", registry = "yn"}
 pi-async-rt                = "0.1"
 
@@ -48,20 +48,20 @@ futures = "0.3"
 
 [patch.yn]
 # bevy
-pi_bevy_render_plugin = { path = "../pi_bevy/crates/render" }
-pi_bevy_asset = { path = "../pi_bevy/crates/asset" }
-pi_bevy_ecs_extend = { path = "../pi_bevy/crates/ecs_extend" }
-pi_window_renderer = { path = "../pi_bevy/crates/window_renderer" }
+pi_bevy_render_plugin = { path = "../pi_bevy_new_graphic/crates/render" }
+pi_bevy_asset = { path = "../pi_bevy_new_graphic/crates/asset" }
+pi_bevy_ecs_extend = { path = "../pi_bevy_new_graphic/crates/ecs_extend" }
+pi_window_renderer = { path = "../pi_bevy_new_graphic/crates/window_renderer" }
 
 # pi_render
 pi_render = { path = "../pi_render" }
 render_utils = { path = "../pi_render/crates/render_utils" }
 render_derive = { path = "../pi_render/crates/render_derive" }
 
-# winit = { path = "../winit" }
+winit = { path = "../winit" }
 # pi_curves = { path = "../pi_curves" }
 # pi_animation = { path = "../pi_animation" }
-# pi_hal = { path = "../pi_hal" }
+pi_hal = { path = "../pi_hal" }
 
 [patch.crates-io]
 pi_assets = {path = "../pi_assets"}
@@ -71,9 +71,10 @@ image = "=0.24.0"
 # env_logger = "0.9"
 pollster = "0.2"
 half = "=2.2.1"
-bevy = { version = "0.11", default-features = false, features = ["bevy_winit"]}
+bevy_ecs = "0.11"
+bevy_app = { version="0.11", default-features = false}
 winit = { path = "../winit" }
-wgpu = { version = "0.1", registry = "yn", package = "pi_wgpu", features = ["wgpu"]}
+wgpu = { version = "0.1", registry = "yn", package = "pi_wgpu", features = ["use_wgpu"]}
 wgpu1 = { version = "0.16", package = "wgpu", default-features = false, features = ["glsl"] }
 
 [net]

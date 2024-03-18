@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use bevy::{prelude::{App, Plugin, Startup}};
+use bevy_app::prelude::{App, Plugin, Startup};
 use image::GenericImageView;
 use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
@@ -32,7 +32,7 @@ fn runner(
 
     match ActionSpine::spine_renderer_apply(id_renderer, Atom::from("TestSpine"), true,  &mut render_graph) {
         Ok(nodeid) => { 
-            entitycmd.insert(pi_bevy_render_plugin::component::GraphId(nodeid));
+            entitycmd.insert(pi_bevy_render_plugin::render_cross::GraphId(nodeid));
 
             //// Texture
             let diffuse_bytes = include_bytes!("../wanzhuqian.png");
@@ -111,11 +111,11 @@ fn runner(
 
 pub struct Engine(App);
 impl TShell for Engine {
-    fn world(&self) -> &bevy::prelude::World {
+    fn world(&self) -> &bevy_ecs::prelude::World {
         &self.0.world
     }
 
-    fn world_mut(&mut self) -> &mut bevy::prelude::World {
+    fn world_mut(&mut self) -> &mut bevy_ecs::prelude::World {
         &mut self.0.world
     }
 
