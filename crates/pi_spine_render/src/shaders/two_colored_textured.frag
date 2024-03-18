@@ -40,13 +40,11 @@ void main() {
     vec4 baseColor = vec4(1., 1., 1., 1.);
     baseColor.a = texColor.a * v_light.a;
     baseColor.rgb = ((texColor.a - 1.0) * v_dark.a + 1.0 - texColor.rgb) * v_dark.rgb + texColor.rgb * v_light.rgb;
-    
-    float _one = step(0.5, u_maskflag.w);
-    float _two = step(1.5, u_maskflag.w);
-    if (_one * (1.0 - _two) > 0.) {
+
+    if (u_maskflag.w == 1.0) {
         baseColor.rgb = u_maskflag.rgb * baseColor.a;
     }
-    if (_two > 0.) {
+    if (u_maskflag.w == 2.0) {
         vec4 c = baseColor;
         vec3 hsvValue = u_maskflag.rgb;
 

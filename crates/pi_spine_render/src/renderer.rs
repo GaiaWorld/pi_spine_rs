@@ -95,7 +95,11 @@ impl RendererAsync {
                     dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
                     operation: wgpu::BlendOperation::Add,
                 },
-                alpha: wgpu::BlendComponent::OVER,
+                alpha: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::SrcAlpha,
+                    dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                    operation: wgpu::BlendOperation::Add,
+                },
             },
             enableblend: true,
             uniform_param: vec![],
@@ -276,7 +280,11 @@ impl RendererAsync {
                 dst_factor,
                 operation: wgpu::BlendOperation::Add,
             },
-            alpha: wgpu::BlendComponent::OVER,
+            alpha: wgpu::BlendComponent {
+                src_factor,
+                dst_factor,
+                operation: wgpu::BlendOperation::Add,
+            },
         }
     }
 
