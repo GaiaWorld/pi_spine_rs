@@ -1,6 +1,6 @@
 use std::{ops::Range, sync::Arc};
 
-use bevy::prelude::Resource;
+use bevy_ecs::prelude::Resource;
 use pi_assets::{asset::{Handle, GarbageEmpty}, mgr::AssetMgr};
 use pi_hash::XHashMap;
 

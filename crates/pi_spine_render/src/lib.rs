@@ -1,7 +1,8 @@
 
 use std::mem::replace;
 
-use bevy::{prelude::{Update, ResMut, Resource, App, Plugin, Res, IntoSystemConfigs, Entity, Commands, SystemSet, apply_deferred}, ecs::system::Query};
+use bevy_ecs::{prelude::{Query, ResMut, Resource, Res, IntoSystemConfigs, Entity, Commands, SystemSet, apply_deferred}, world::World, system::SystemState};
+use bevy_app::prelude::{Update, App, Plugin};
 use crossbeam::queue::SegQueue;
 use futures::FutureExt;
 use pi_assets::{mgr::{AssetMgr, LoadResult}, asset::{Handle, GarbageEmpty}};
@@ -9,9 +10,10 @@ use pi_async_rt::prelude::AsyncRuntime;
 use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
 use pi_bevy_render_plugin::{
-    PiRenderDevice, PiRenderQueue, node::Node, PiSafeAtlasAllocator, SimpleInOut, PiClearOptions, PiRenderGraph, NodeId, GraphError, PiRenderSystemSet, component::GraphId, PiRenderOptions,
-    constant::texture_sampler::*
+    PiRenderDevice, PiRenderQueue, node::{Node, ParamUsage}, PiSafeAtlasAllocator, SimpleInOut, PiClearOptions, PiRenderGraph, NodeId, GraphError, PiRenderSystemSet, render_cross::GraphId, PiRenderOptions,
+    constant::texture_sampler::*, RenderContext
 };
+use pi_null::Null;
 // use pi_window_renderer::WindowRenderer;
 use pi_hal::{runtime::RENDER_RUNTIME, loader::AsyncLoader};
 use pi_hash::XHashMap;
@@ -20,6 +22,7 @@ use pi_share::Share;
 use renderer::{RendererAsync, SpineResource};
 use shaders::KeySpineShader;
 use smallvec::SmallVec;
+use wgpu::StoreOp;
 
 
 pub mod binds;
@@ -62,18 +65,83 @@ impl SpineRenderNodeParam {
     }
 }
 
-pub struct SpineRenderNode(pub KeySpineRenderer);
+pub struct SpineRenderNode{
+	pub renderer: KeySpineRenderer,
+	rt: Option<ShareTargetView>,
+}
+
+impl SpineRenderNode {
+	pub fn new(renderer: KeySpineRenderer) -> Self {
+		Self { renderer, rt: None }
+	}
+}
+
 impl Node for SpineRenderNode {
     type Input = ();
 
     type Output = SimpleInOut;
 
-    type Param = ();
+	type BuildParam = ();
+    type RunParam = ();
+
+	fn build<'a>(
+        &'a mut self,
+        world: &'a mut World,
+        param: &'a mut SystemState<Self::BuildParam>,
+        context: RenderContext,
+		input: &'a Self::Input,
+        usage: &'a ParamUsage,
+		id: NodeId,
+		from: &'a [NodeId],
+		to: &'a [NodeId],
+    ) -> Result<Self::Output, String> {
+		let spine_ctx = world.get_resource::<SpineRenderContext>().unwrap();
+		let renderer = if let Some(renderer) = spine_ctx.list.get(&self.renderer) {
+			renderer
+		} else {
+			log::warn!("SpineGraph:: None renderer");
+			return Ok(SimpleInOut { target: None, valid_rect: None })
+		};
+
+		if renderer.to_screen == false {
+			let temp: Vec<ShareTargetView> = vec![];
+			let atlas_allocator = world.get_resource::<PiSafeAtlasAllocator>().unwrap();
+			let target_type = atlas_allocator.get_or_create_type(
+				TargetDescriptor {
+					colors_descriptor: SmallVec::from_slice(
+						&[
+							TextureDescriptor {
+								mip_level_count: 1,
+								sample_count: 1,
+								dimension: wgpu::TextureDimension::D2,
+								format: FORMAT.val(),
+								usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
+								base_mip_level: 0,
+								base_array_layer: 0,
+								array_layer_count: None,
+								view_dimension: None,
+							}
+						]
+					),
+					need_depth: false,
+					default_width: 2048,
+					default_height: 2048,
+					depth_descriptor: None,
+				}
+			);
+
+			let target = atlas_allocator.allocate(renderer.width, renderer.height, target_type, temp.iter());
+			self.rt = Some(target.clone());
+			Ok(SimpleInOut { target: Some(target), valid_rect: None })
+		} else {
+			Ok(SimpleInOut { target: None, valid_rect: None })
+		}
+	}
 
     fn run<'a>(
         &'a mut self,
-        world: &'a bevy::prelude::World,
-        param: &'a mut bevy::ecs::system::SystemState<Self::Param>,
+        world: &'a bevy_ecs::prelude::World,
+        param: &'a mut bevy_ecs::system::SystemState<Self::RunParam>,
         _context: pi_bevy_render_plugin::RenderContext,
         commands: pi_share::ShareRefCell<wgpu::CommandEncoder>,
         _input: &'a Self::Input,
@@ -81,52 +149,31 @@ impl Node for SpineRenderNode {
 		_id: NodeId,
 		_from: &[NodeId],
 		_to: &[NodeId],
-    ) -> pi_futures::BoxFuture<'a, Result<Self::Output, String>> {
+    ) -> pi_futures::BoxFuture<'a, Result<(), String>> {
         let atlas_allocator = world.get_resource::<PiSafeAtlasAllocator>().unwrap();
         let temp: Vec<ShareTargetView> = vec![];
         
         let spine_ctx = world.get_resource::<SpineRenderContext>().unwrap();
 
-        let renderer = if let Some(renderer) = spine_ctx.list.get(&self.0) {
+        let renderer = if let Some(renderer) = spine_ctx.list.get(&self.renderer) {
             renderer
         } else {
             return async move {
                 log::warn!("SpineGraph:: None renderer");
-                Ok(SimpleInOut { target: None, valid_rect: None })
+                Ok(())
             }.boxed();
         };
-        
-        if renderer.to_screen == false {
-            Box::pin(
+
+		return Box::pin(
             async move {
                 
                 let mut encoder = commands.0.as_ref().borrow_mut();
 
-                let target_type = atlas_allocator.get_or_create_type(
-                    TargetDescriptor {
-                        colors_descriptor: SmallVec::from_slice(
-                            &[
-                                TextureDescriptor {
-                                    mip_level_count: 1,
-                                    sample_count: 1,
-                                    dimension: wgpu::TextureDimension::D2,
-                                    format: FORMAT.val(),
-                                    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
-                                    base_mip_level: 0,
-                                    base_array_layer: 0,
-                                    array_layer_count: None,
-                                    view_dimension: None,
-                                }
-                            ]
-                        ),
-                        need_depth: false,
-                        default_width: 2048,
-                        default_height: 2048,
-                        depth_descriptor: None,
-                    }
-                );
 
-                let target = atlas_allocator.allocate(renderer.width, renderer.height, target_type, temp.iter());
+                let target = match &self.rt {
+                    Some(r) => r,
+                    None => return  Ok(()),
+                };
                 
                 {
                     let _renderpass = encoder.begin_render_pass(
@@ -139,12 +186,14 @@ impl Node for SpineRenderNode {
                                         resolve_target: None,
                                         ops: wgpu::Operations {
                                             load: wgpu::LoadOp::Clear(wgpu::Color { r: 0., g: 0., b: 0., a: 0. }),
-                                            store: true,
+                                            store: StoreOp::Store,
                                         }
                                     }
                                 )
                             ],
                             depth_stencil_attachment: None,
+							timestamp_writes: None,
+                            occlusion_query_set: None,
                         }
                     );
                 }
@@ -159,12 +208,14 @@ impl Node for SpineRenderNode {
                                         resolve_target: None,
                                         ops: wgpu::Operations {
                                             load: wgpu::LoadOp::Load,
-                                            store: true,
+                                            store: StoreOp::Store,
                                         }
                                     }
                                 )
                             ],
                             depth_stencil_attachment: None,
+                            timestamp_writes: None,
+                            occlusion_query_set: None,
                         }
                     );
                     let rect = target.rect();
@@ -184,47 +235,41 @@ impl Node for SpineRenderNode {
                     DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
                 }
 
-                Ok(SimpleInOut { target: Some(target), valid_rect: None })
-            })
-        } else {
-            
-            Box::pin(async move {
-                Ok(SimpleInOut { target: None, valid_rect: None })
-            })
+                Ok(())
+        	});
+        
+		// let screen = param.get(world);
 
-            // let screen = param.get(world);
+		// Box::pin(async move {
+		//     if let Some(view) = screen.view() {
+		//         let mut encoder = commands.0.as_ref().borrow_mut();
+		//         let mut renderpass = encoder.begin_render_pass(
+		//             &wgpu::RenderPassDescriptor {
+		//                 label: None,
+		//                 color_attachments: &[
+		//                     Some(
+		//                         wgpu::RenderPassColorAttachment {
+		//                             view: &view,
+		//                             resolve_target: None,
+		//                             ops: wgpu::Operations {
+		//                                 load: wgpu::LoadOp::Load,
+		//                                 store: true,
+		//                             }
+		//                         }
+		//                     )
+		//                 ],
+		//                 depth_stencil_attachment: None,
+		//             }
+		//         );
+				
+		//         // renderpass.set_viewport(x, y, w, h, min_depth, max_depth);
+		//         // renderpass.set_scissor_rect(x as u32, y as u32, w as u32, h as u32);
+		//         // log::warn!("SpineGraph Draws: {:?}", renderer.render.drawobjs.list.len());
+		//         DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
+		//     }
 
-            // Box::pin(async move {
-            //     if let Some(view) = screen.view() {
-            //         let mut encoder = commands.0.as_ref().borrow_mut();
-            //         let mut renderpass = encoder.begin_render_pass(
-            //             &wgpu::RenderPassDescriptor {
-            //                 label: None,
-            //                 color_attachments: &[
-            //                     Some(
-            //                         wgpu::RenderPassColorAttachment {
-            //                             view: &view,
-            //                             resolve_target: None,
-            //                             ops: wgpu::Operations {
-            //                                 load: wgpu::LoadOp::Load,
-            //                                 store: true,
-            //                             }
-            //                         }
-            //                     )
-            //                 ],
-            //                 depth_stencil_attachment: None,
-            //             }
-            //         );
-                    
-            //         // renderpass.set_viewport(x, y, w, h, min_depth, max_depth);
-            //         // renderpass.set_scissor_rect(x as u32, y as u32, w as u32, h as u32);
-            //         // log::warn!("SpineGraph Draws: {:?}", renderer.render.drawobjs.list.len());
-            //         DrawList::render(renderer.render.drawobjs.list.as_slice(), &mut renderpass);
-            //     }
-
-            //     Ok(SimpleInOut { target: None, valid_rect: None })
-            // })
-        }
+		//     Ok(SimpleInOut { target: None, valid_rect: None })
+		// })
     }
 }
 
@@ -450,7 +495,7 @@ impl ActionSpine {
         render_graph: &mut PiRenderGraph,
     ) -> Result<NodeId, GraphError> {
         let key = String::from(name.as_str());
-        match render_graph.add_node(key.clone(), SpineRenderNode(id)) {
+        match render_graph.add_node(key.clone(), SpineRenderNode::new(id), NodeId::null()) {
             Ok(v) => {
                 // if to_screen {
                 //     render_graph.add_depend(WindowRenderer::CLEAR_KEY, key.clone());
