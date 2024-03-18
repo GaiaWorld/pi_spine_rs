@@ -1,6 +1,6 @@
 [package]
 name = "pi_spine_rs"
-version = "0.0.3"
+version = "0.0.4"
 authors = ["baip0002 <2494156981@qq.com>"]
 edition = "2021"
 description = "Pi Spine Render."
