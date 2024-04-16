@@ -12,7 +12,7 @@ keywords = ["scene Render"]
 members = ["crates/*"]
 
 [dependencies]
-pi_spine_render = { version  ="*", path = "crates/pi_spine_render" }
+pi_spine_render = { version  ="*", registry = "yn" }
 
 pi_render = {version  ="0.1", registry = "yn"}
 render_derive = {version  ="0.1", registry = "yn"}
@@ -46,6 +46,8 @@ futures = "0.3"
 # pi_async_graph = { path = "../pi_async_graph" }
 
 [patch.yn]
+pi_spine_render = { path = "crates/pi_spine_render" }
+
 # bevy
 pi_bevy_render_plugin = { path = "../pi_bevy_new_graphic/crates/render" }
 pi_bevy_asset = { path = "../pi_bevy_new_graphic/crates/asset" }
