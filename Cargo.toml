@@ -22,7 +22,6 @@ pi_bevy_asset = {version  ="0.1", registry = "yn"}
 pi_bevy_ecs_extend = {version  ="0.1", registry = "yn"}
 pi_window_renderer = {version  ="0.1", registry = "yn"}
 
-bevy = { version = "0.11", default-features = false }
 pi_scene_math = { git = "https://github.com/GaiaWorld/pi_scene" }
 
 pi_map = "0.2"
