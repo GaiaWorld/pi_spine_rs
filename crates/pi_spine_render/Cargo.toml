@@ -1,6 +1,6 @@
 [package]
 name = "pi_spine_render"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["baip0002 <2494156981@qq.com>"]
 edition = "2021"
 description = "Pi Spine Render."
@@ -49,7 +49,7 @@ pi_render = {version  ="0.1", registry = "yn"}
 render_utils = {version  ="0.1", registry = "yn"}
 render_derive = {version  ="0.1", registry = "yn"}
 
-pi_scene_math = { git = "https://github.com/GaiaWorld/pi_scene" }
+pi_scene_math = "0.0.3"
 
 # [[example]]
 
