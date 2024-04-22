@@ -1,6 +1,6 @@
 [package]
 name = "pi_spine_render"
-version = "0.0.4"
+version = "0.0.5"
 authors = ["baip0002 <2494156981@qq.com>"]
 edition = "2021"
 description = "Pi Spine Render."
@@ -10,7 +10,6 @@ keywords = ["scene Render"]
 
 [dependencies]
 wgpu = { version = "0.1", registry = "yn", package = "pi_wgpu"}
-env_logger = "0.9"
 log = "0.4"
 smallvec = "1.9"
 crossbeam="0.8"
