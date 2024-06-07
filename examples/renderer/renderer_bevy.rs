@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use bevy_app::prelude::{App, Plugin, Startup};
 use image::GenericImageView;
 use pi_atom::Atom;
 use pi_bevy_asset::ShareAssetMgr;
@@ -9,7 +8,7 @@ use pi_bevy_render_plugin::{PiRenderPlugin, PiRenderGraph, PiRenderDevice, PiRen
 // use pi_window_renderer::{PluginWindowRender, WindowRenderer};
 use pi_render::{asset::TAssetKeyU64, rhi::{asset::TextureRes, sampler::{SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}}, renderer::sampler::SamplerRes};
 use pi_scene_math::{Vector4, Matrix};
-use pi_spine_rs::{PluginSpineRenderer, shaders::KeySpineShader, SpineRenderContext, ecs::{ResMut, Res, Commands}, ActionListSpine, KeySpineRenderer, ActionSpine};
+use pi_spine_rs::{ecs::{Commands, Res, ResMut, TEntityCommands, App, Plugin, Startup, World}, shaders::KeySpineShader, ActionListSpine, ActionSpine, KeySpineRenderer, PluginSpineRenderer, SpineRenderContext};
 use pi_async_rt::rt::AsyncRuntime;
 use pi_hal::{init_load_cb, runtime::MULTI_MEDIA_RUNTIME, on_load};
 
@@ -111,11 +110,11 @@ fn runner(
 
 pub struct Engine(App);
 impl TShell for Engine {
-    fn world(&self) -> &bevy_ecs::prelude::World {
+    fn world(&self) -> &World {
         &self.0.world
     }
 
-    fn world_mut(&mut self) -> &mut bevy_ecs::prelude::World {
+    fn world_mut(&mut self) -> &mut World {
         &mut self.0.world
     }
 

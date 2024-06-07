@@ -1,8 +1,9 @@
 
-use std::mem::replace;
+use std::mem::{replace, transmute};
 
-use bevy_ecs::{prelude::{Query, ResMut, Resource, Res, IntoSystemConfigs, Entity, Commands, SystemSet, apply_deferred}, world::World, system::SystemState};
-use bevy_app::prelude::{Update, App, Plugin};
+// use bevy_ecs::{prelude::{Query, ResMut, Resource, Res, IntoSystemConfigs, Entity, Commands, SystemSet, apply_deferred}, world::World, system::SystemState};
+// use bevy_app::prelude::{Update, App, Plugin};
+
 use crossbeam::queue::SegQueue;
 use futures::FutureExt;
 use pi_assets::{mgr::{AssetMgr, LoadResult}, asset::{Handle, GarbageEmpty}};
@@ -23,6 +24,7 @@ use renderer::{RendererAsync, SpineResource};
 use shaders::KeySpineShader;
 use smallvec::SmallVec;
 use wgpu::StoreOp;
+use ecs::*;
 
 
 pub mod binds;
@@ -49,7 +51,10 @@ pub const SAMPLER_DESC: SamplerDesc = SamplerDesc {
 pub struct KeySpineRenderer(pub Entity);
 impl KeySpineRenderer {
     pub fn from_f64(val: f64) -> Self {
-        Self(Entity::from_bits(val.to_bits()))
+        Self(
+            unsafe{ transmute(val) }
+            // Entity::from_bits(val.to_bits())
+        )
     }
 }
 
@@ -81,13 +86,13 @@ impl Node for SpineRenderNode {
 
     type Output = SimpleInOut;
 
-	type BuildParam = ();
-    type RunParam = ();
+	type BuildParam = (ResMut<'static, PiSafeAtlasAllocator>, ResMut<'static, SpineRenderContext>);
+    type RunParam = (ResMut<'static, PiSafeAtlasAllocator>, ResMut<'static, SpineRenderContext>);
 
 	fn build<'a>(
         &'a mut self,
-        world: &'a mut World,
-        param: &'a mut SystemState<Self::BuildParam>,
+        // world: &'a mut World,
+        param: &'a mut Self::BuildParam,
         context: RenderContext,
 		input: &'a Self::Input,
         usage: &'a ParamUsage,
@@ -95,7 +100,7 @@ impl Node for SpineRenderNode {
 		from: &'a [NodeId],
 		to: &'a [NodeId],
     ) -> Result<Self::Output, String> {
-		let spine_ctx = world.get_resource::<SpineRenderContext>().unwrap();
+		let spine_ctx = &param.1;
 		let renderer = if let Some(renderer) = spine_ctx.list.get(&self.renderer) {
 			renderer
 		} else {
@@ -105,7 +110,7 @@ impl Node for SpineRenderNode {
 
 		if renderer.to_screen == false {
 			let temp: Vec<ShareTargetView> = vec![];
-			let atlas_allocator = world.get_resource::<PiSafeAtlasAllocator>().unwrap();
+			let atlas_allocator = &param.0;
 			let target_type = atlas_allocator.get_or_create_type(
 				TargetDescriptor {
 					colors_descriptor: SmallVec::from_slice(
@@ -140,8 +145,8 @@ impl Node for SpineRenderNode {
 
     fn run<'a>(
         &'a mut self,
-        world: &'a bevy_ecs::prelude::World,
-        param: &'a mut bevy_ecs::system::SystemState<Self::RunParam>,
+        // world: &'a bevy_ecs::prelude::World,
+        param: &'a Self::RunParam,
         _context: pi_bevy_render_plugin::RenderContext,
         commands: pi_share::ShareRefCell<wgpu::CommandEncoder>,
         _input: &'a Self::Input,
@@ -150,10 +155,10 @@ impl Node for SpineRenderNode {
 		_from: &[NodeId],
 		_to: &[NodeId],
     ) -> pi_futures::BoxFuture<'a, Result<(), String>> {
-        let atlas_allocator = world.get_resource::<PiSafeAtlasAllocator>().unwrap();
+        let atlas_allocator = &param.0;
         let temp: Vec<ShareTargetView> = vec![];
         
-        let spine_ctx = world.get_resource::<SpineRenderContext>().unwrap();
+        let spine_ctx = &param.1;
 
         let renderer = if let Some(renderer) = spine_ctx.list.get(&self.renderer) {
             renderer
@@ -769,16 +774,13 @@ impl Plugin for PluginSpineRenderer {
             .insert_resource(SpineRenderContext::new())
             .insert_resource(SpineTextureLoad::default());
 
-        app.add_systems(
-			Update,
-            (
-                sys_spine_cmds,
-                sys_spine_render_apply,
-                sys_spine_texture_load
-            ).chain().in_set(SpineSystemSet).before(PiRenderSystemSet)
-        );
+        app
+        .add_systems(Update, sys_spine_cmds.in_set(SpineSystemSet).before(PiRenderSystemSet))
+        .add_systems(Update, sys_spine_render_apply.after(sys_spine_cmds).in_set(SpineSystemSet).before(PiRenderSystemSet))
+        .add_systems(Update, sys_spine_texture_load.after(sys_spine_render_apply).in_set(SpineSystemSet).before(PiRenderSystemSet))
+        ;
 
-        app.add_system(apply_deferred.in_set(SpineSystemSet));
+        // app.add_system(apply_deferred.in_set(SpineSystemSet));
 
         // log::warn!("PluginSpineRenderer");
     }
