@@ -32,7 +32,7 @@ pi_assets = "0.13"
 pi_futures = "0.1"
 pi-async-rt = "0.1"
 pi_slotmap_tree = "0.3"
-pi_hal = {version  ="=0.1.26", registry = "yn"}
+pi_hal = {version  ="0.1", registry = "yn"}
 pi_null = "0.1"
 
 js-sys = "0.3"

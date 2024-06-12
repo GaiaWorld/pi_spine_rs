@@ -29,7 +29,7 @@ pi_hash = "0.1"
 pi_assets = "0.13"
 pi_share = "0.4"
 pi_atom = { version = "0.5", features = ["serde"] }
-pi_hal = {version  ="=0.1.26", registry = "yn"}
+pi_hal = {version  ="0.1", registry = "yn"}
 pi-async-rt                = "0.1"
 
 wgpu = { version = "0.1", registry = "yn", package = "pi_wgpu"}
