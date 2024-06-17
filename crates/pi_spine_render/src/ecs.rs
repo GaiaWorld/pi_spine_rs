@@ -209,8 +209,8 @@ impl WorldResourceTemp for World {
         self.contains_resource::<T>()
     }
     fn spawn_empty<'w>(&'w mut self) -> EntityCommandsEmpty<'w> {
-        let entity = self.make_inserter().insert(());
         let mut editor = self.make_entity_editor();
+        let entity = editor.alloc_entity();
         EntityCommandsEmpty {
             entity: entity,
             commands: editor
