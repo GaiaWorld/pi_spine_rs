@@ -8,16 +8,10 @@ use pi_hash::XHashMap;
 use pi_map::smallvecmap::SmallVecMap;
 use pi_render::{
     renderer::{
-        draw_obj::{DrawObj, DrawBindGroups, DrawBindGroup},
-        sampler::SamplerRes,
-        pipeline::KeyRenderPipelineState,
-        vertices::{RenderVertices, EVerticesBufferUsage, RenderIndices},
-        draw_obj_list::DrawList, vertex_buffer::{VertexBufferAllocator, EVertexBufferRange}
+        draw_obj::{DrawBindGroup, DrawBindGroups, DrawObj}, draw_obj_list::DrawList, pipeline::KeyRenderPipelineState, sampler::SamplerRes, texture::{ETextureViewUsage, ImageTextureView}, vertex_buffer::{EVertexBufferRange, VertexBufferAllocator}, vertices::{EVerticesBufferUsage, RenderIndices, RenderVertices}
     },
     rhi::{
-        asset::{TextureRes, RenderRes},
-        device::RenderDevice, RenderQueue, bind_group::BindGroup, PrimitiveState,
-        sampler::SamplerDesc, options::RenderOptions
+        asset::RenderRes, bind_group::BindGroup, device::RenderDevice, options::RenderOptions, sampler::SamplerDesc, PrimitiveState, RenderQueue
     }
 };
 use pi_share::Share;
@@ -58,7 +52,7 @@ pub struct SpineDraw {
     indices: Option<Vec<u16>>,
     verticeslen: u32,
     indiceslen: u32,
-    texture: Option<Handle<TextureRes>>,
+    texture: Option<ETextureViewUsage>,
     sampler: Option<Handle<SamplerRes>>,
     shader: KeySpineShader,
     pipeline: KeySpinePipeline,
@@ -74,10 +68,10 @@ pub struct RendererAsync {
     pub(crate) shader: Option<KeySpineShader>,
     pub(crate) blend: wgpu::BlendState,
     pub(crate) enableblend: bool,
-    pub(crate) textures: XHashMap<u64, Handle<TextureRes>>,
+    pub(crate) textures: XHashMap<u64, ETextureViewUsage>,
     pub(crate) samplers: XHashMap<SamplerDesc, Handle<SamplerRes>>,
     uniform_param: Vec<Vec<f32>>,
-    texture: Option<Handle<TextureRes>>,
+    texture: Option<ETextureViewUsage>,
     sampler: Option<Handle<SamplerRes>>,
     pub target_format: wgpu::TextureFormat,
 }
@@ -118,7 +112,7 @@ impl RendererAsync {
         queue: &RenderQueue,
         resource: &mut SpineResource,
         _asset_samplers: &Share<AssetMgr<SamplerRes>>,
-        _asset_textures: &Share<AssetMgr<TextureRes>>,
+        _asset_textures: &Share<AssetMgr<ImageTextureView>>,
     ) -> &DrawList {
         let mut binds = vec![];
         self.uniform_param.drain(..).for_each(|uniform_param| {
@@ -290,7 +284,7 @@ impl RendererAsync {
 
     pub fn texture(
         &mut self,
-        texture: Option<Handle<TextureRes>>,
+        texture: Option<ETextureViewUsage>,
         sampler: Option<Handle<SamplerRes>>,
     ) {
         // log::warn!("texture {:?}", texture);
@@ -301,7 +295,7 @@ impl RendererAsync {
     pub fn record_texture(
         &mut self,
         key_texture: u64,
-        texture: Handle<TextureRes>,
+        texture: ETextureViewUsage,
     ) {
         // log::warn!("record_texture {:?}", key_texture);
         self.textures.insert(key_texture, texture);

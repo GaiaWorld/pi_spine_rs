@@ -18,7 +18,7 @@ use pi_null::Null;
 // use pi_window_renderer::WindowRenderer;
 use pi_hal::{runtime::RENDER_RUNTIME, loader::AsyncLoader};
 use pi_hash::XHashMap;
-use pi_render::{rhi::{sampler::{SamplerDesc, EAddressMode, EFilterMode, EAnisotropyClamp}, asset::{TextureRes, ImageTextureDesc}}, asset::TAssetKeyU64, renderer::{sampler::SamplerRes, draw_obj_list::DrawList}, components::view::target_alloc::{ShareTargetView, TargetDescriptor, TextureDescriptor}};
+use pi_render::{asset::TAssetKeyU64, components::view::target_alloc::{ShareTargetView, TargetDescriptor, TextureDescriptor}, renderer::{draw_obj_list::DrawList, sampler::SamplerRes, texture::{ETextureViewUsage, ImageTexture, ImageTexture2DDesc, ImageTextureView, KeyImageTexture, KeyImageTextureView, TextureViewDesc}}, rhi::{asset::{ImageTextureDesc, TextureRes}, sampler::{EAddressMode, EAnisotropyClamp, EFilterMode, SamplerDesc}}};
 use pi_share::Share;
 use renderer::{RendererAsync, SpineResource};
 use shaders::KeySpineShader;
@@ -303,15 +303,15 @@ impl SpineRenderContext {
 pub enum ESpineCommand {
     Create(KeySpineRenderer, String, Option<(u32, u32)>, wgpu::TextureFormat),
     Dispose(KeySpineRenderer),
-    TextureLoad(Atom),
-    TextureRecord(KeySpineRenderer, Handle<TextureRes>),
+    TextureLoad(KeyImageTextureView),
+    TextureRecord(KeySpineRenderer, u64, ETextureViewUsage),
     SamplerRecord(KeySpineRenderer, SamplerDesc, Handle<SamplerRes>),
     RemoveTextureRecord(KeySpineRenderer, u64),
     Reset(KeySpineRenderer),
     RenderSize(KeySpineRenderer, u32, u32),
     Shader(KeySpineRenderer, Option<KeySpineShader>),
-    UseTexture(KeySpineRenderer, Option<Handle<TextureRes>>, Option<Handle<SamplerRes>>),
-    Texture(KeySpineRenderer, u64, Handle<TextureRes>, SamplerDesc, Handle<SamplerRes>),
+    UseTexture(KeySpineRenderer, Option<ETextureViewUsage>, Option<Handle<SamplerRes>>),
+    Texture(KeySpineRenderer, u64, ETextureViewUsage, SamplerDesc, Handle<SamplerRes>),
     Blend(KeySpineRenderer, bool),
     BlendMode(KeySpineRenderer, wgpu::BlendFactor, wgpu::BlendFactor),
     Uniform(KeySpineRenderer, Vec<f32>),
@@ -364,11 +364,11 @@ pub fn sys_spine_cmds(
             ESpineCommand::TextureLoad(key) => {
                 texloader.load(key);
             },
-            ESpineCommand::TextureRecord(id_renderer, val) => {
+            ESpineCommand::TextureRecord(id_renderer, key, val) => {
                 if let Some(renderer) = renderers.get_mut(id_renderer) {
                     // log::warn!("Cmd: Texture");
-                    let key_u64 = val.key();
-                    renderer.render_mut().record_texture(*key_u64, val);
+                    // let key_u64 = val.key();
+                    renderer.render_mut().record_texture(key, val);
                 }
             },
             ESpineCommand::SamplerRecord(id_renderer, samplerdesc, val) => {
@@ -451,11 +451,12 @@ pub fn sys_spine_render_apply(
     device: Res<PiRenderDevice>,
     queue: Res<PiRenderQueue>,
     asset_samplers: Res<ShareAssetMgr<SamplerRes>>,
-    asset_textures: Res<ShareAssetMgr<TextureRes>>,
+    asset_textures: Res<ShareAssetMgr<ImageTexture>>,
+    asset_textureviews: Res<ShareAssetMgr<ImageTextureView>>,
 ) {
     // log::warn!("Apply: {:?}", renderers.list.len());
     renderers.list.iter_mut().for_each(|(_, v)| {
-        v.render.drawlist(&device, &queue, &mut resource, &asset_samplers, &asset_textures);
+        v.render.drawlist(&device, &queue, &mut resource, &asset_samplers, &asset_textureviews);
     });
     resource.verticeallocator.upload(&queue);
     resource.indicesallocator.upload(&queue);
@@ -542,7 +543,7 @@ impl ActionSpine {
     pub fn spine_use_texture(
         cmds: &mut ActionListSpine,
         id_renderer: KeySpineRenderer,
-        value: Handle<TextureRes>,
+        value: ETextureViewUsage,
         sampler: Handle<SamplerRes>,
     ) {
         cmds.push(ESpineCommand::UseTexture(id_renderer, Some(value), Some(sampler)));
@@ -644,7 +645,7 @@ impl ActionSpine {
             }
         };
 
-        cmds.push(ESpineCommand::Texture(id_renderer, key_u64, texture, samplerdesc, sampler));
+        cmds.push(ESpineCommand::Texture(id_renderer, key_u64, ETextureViewUsage::Tex(texture), samplerdesc, sampler));
     }
 
     pub fn spine_reset(
@@ -675,12 +676,12 @@ impl ActionSpine {
 
 #[derive(Resource, Default)]
 pub struct SpineTextureLoad {
-    pub success: Share<SegQueue<(Atom, Handle<TextureRes>)>>,
-    pub fail: Share<SegQueue<(Atom, String)>>,
-    pub list: Vec<Atom>,
+    pub success: Share<SegQueue<(KeyImageTextureView, Handle<ImageTextureView>)>>,
+    pub fail: Share<SegQueue<(KeyImageTextureView, String)>>,
+    pub list: Vec<KeyImageTextureView>,
 }
 impl SpineTextureLoad {
-    pub fn load(&mut self, key: Atom) {
+    pub fn load(&mut self, key: KeyImageTextureView) {
         self.list.push(key)
     }
 }
@@ -690,7 +691,8 @@ fn sys_spine_texture_load(
     mut loader: ResMut<SpineTextureLoad>,
     device: Res<PiRenderDevice>,
     queue: Res<PiRenderQueue>,
-    texture_assets_mgr: Res<ShareAssetMgr<TextureRes>>,
+    image_assets_mgr: Res<ShareAssetMgr<ImageTexture>>,
+    texture_assets_mgr: Res<ShareAssetMgr<ImageTextureView>>,
 ) {
     let mut list = replace(&mut loader.list, vec![]);
     list.drain(..).for_each(|k| {
@@ -705,24 +707,78 @@ fn sys_spine_texture_load(
                 let fail = loader.fail.clone();
                 let device = device.0.clone();
                 let queue = queue.0.clone();
+                let image_assets_mgr = image_assets_mgr.clone();
     
                 RENDER_RUNTIME
                     .spawn(async move {
-                        let desc = ImageTextureDesc {
-                            url: &k,
-                            device: &device,
-                            queue: &queue,
-                        };
-        
-                        let r = TextureRes::async_load(desc, result).await;
-                        match r {
-                            Ok(r) => {
-                                success.push((k, r));
+                        let imageresult = AssetMgr::load(&image_assets_mgr, &k.url());
+                        match imageresult {
+                            pi_assets::mgr::LoadResult::Ok(image) => {
+                                let viewkey = k.clone();
+                                RENDER_RUNTIME.spawn(async move {
+                                    // log::error!("Texture Load Task {:?}", (texkey));
+                                    RENDER_RUNTIME.spawn(async move {
+                                        // log::error!("Texture Load Task {:?}", (texkey));
+                                        match ImageTextureView::async_load(image, viewkey, result).await {
+                                            Ok(r) => {
+                                                // log::warn!("Texture Load Success {:?}", (texkey));
+                                                success.push((k, r));
+                                            }
+                                            Err(_e) => {
+                                                // log::error!("Texture Load Fail {:?}", (texkey));
+                                                fail.push((k.clone(), format!("load image fail, {:?}", _e)));
+                                            }
+                                        };
+                                    }).unwrap();
+                                }).unwrap();
+                            },
+                            _ => {
+                                let param = k.url().clone();
+                                let viewkey = k.clone();
+                                RENDER_RUNTIME.spawn(async move {
+                                    let desc = ImageTexture2DDesc { url: param.clone(), device, queue, };
+                                    match param.compressed {
+                                        true => match ImageTexture::async_load_compressed(desc, imageresult).await {
+                                            Ok(image) => {
+                                                RENDER_RUNTIME.spawn(async move {
+                                                    // log::error!("Texture Load Task {:?}", (texkey));
+                                                    match ImageTextureView::async_load(image, viewkey, result).await {
+                                                        Ok(r) => {
+                                                            // log::warn!("Texture Load Success {:?}", (texkey));
+                                                            success.push((k, r));
+                                                        }
+                                                        Err(_e) => {
+                                                            // log::error!("Texture Load Fail {:?}", (texkey));
+                                                            fail.push((k.clone(), format!("load image fail, {:?}", _e)));
+                                                        }
+                                                    };
+                                                }).unwrap();
+                                            },
+                                            Err(e) => fail.push((k.clone(), format!("load image fail, {:?}", e))),
+                                        },
+                                        false => match ImageTexture::async_load_image(desc, imageresult).await {
+                                            Ok(image) => {
+                                                RENDER_RUNTIME.spawn(async move {
+                                                    // log::error!("Texture Load Task {:?}", (texkey));
+                                                    match ImageTextureView::async_load(image, viewkey, result).await {
+                                                        Ok(r) => {
+                                                            // log::warn!("Texture Load Success {:?}", (texkey));
+                                                            success.push((k, r));
+                                                        }
+                                                        Err(_e) => {
+                                                            // log::error!("Texture Load Fail {:?}", (texkey));
+                                                            fail.push((k.clone(), format!("load image fail, {:?}", _e)));
+                                                        }
+                                                    };
+                                                }).unwrap();
+                                            },
+                                            Err(e) => fail.push((k.clone(), format!("load image fail, {:?}", e))),
+                                        },
+                                    };
+                                })
+                                .unwrap();
                             }
-                            Err(e) => {
-                                fail.push((k, format!("load image fail, {:?}", e)));
-                            }
-                        };
+                        }
                     })
                     .unwrap();
             }
@@ -757,8 +813,8 @@ impl Plugin for PluginSpineRenderer {
         if app.world.get_resource::<ShareAssetMgr<SamplerRes>>().is_none() {
             app.insert_resource(ShareAssetMgr::<SamplerRes>::new(GarbageEmpty(), false, 32 * 1024, 30 * 1000));
         }
-        if app.world.get_resource::<ShareAssetMgr<TextureRes>>().is_none() {
-            app.insert_resource(ShareAssetMgr::<TextureRes>::new(GarbageEmpty(), false, 32 * 1024 * 1024, 30 * 1000));
+        if app.world.get_resource::<ShareAssetMgr<ImageTextureView>>().is_none() {
+            app.insert_resource(ShareAssetMgr::<ImageTextureView>::new(GarbageEmpty(), false, 32 * 1024 * 1024, 30 * 1000));
         }
 
         let cfg = if let Some(cfg) = app.world.get_resource::<SpineAssetConfig>() {

@@ -2,7 +2,7 @@ use std::{hash::{Hash, Hasher}, num::NonZeroU64};
 
 use pi_assets::{asset::Handle, mgr::AssetMgr};
 use pi_hash::DefaultHasher;
-use pi_render::{rhi::{bind_group::BindGroup, asset::{RenderRes, TextureRes}, sampler::SamplerDesc, device::RenderDevice}, renderer::sampler::SamplerRes, asset::ASSET_SIZE_FOR_UNKOWN};
+use pi_render::{asset::{TAssetKeyU64, ASSET_SIZE_FOR_UNKOWN}, renderer::{sampler::SamplerRes, texture::{ETextureViewUsage, ImageTextureView}}, rhi::{asset::RenderRes, bind_group::BindGroup, device::RenderDevice, sampler::SamplerDesc}};
 
 use pi_share::Share;
 
@@ -51,7 +51,7 @@ impl Eq for KeySpineBindGroup {}
 
 pub struct SpineBindGroup {
     pub(crate) bindgroup: Handle<RenderRes<BindGroup>>,
-    texture: Option<Handle<TextureRes>>,
+    texture: Option<ETextureViewUsage>,
     sampler: Option<Handle<SamplerRes>>,
     param: Handle<SpineBindBuffer>,
 }
@@ -95,13 +95,13 @@ impl SpineBindGroup {
     pub fn colored_textured(
         param: Handle<SpineBindBuffer>,
         device: &RenderDevice,
-        texture: Handle<TextureRes>,
+        texture: ETextureViewUsage,
         sampler: Handle<SamplerRes>,
         asset_mgr: &Share<AssetMgr<RenderRes<BindGroup>>>,
         bind_group_layouts: &SingleSpineBindGroupLayout,
     ) -> Self {
         let key = KeySpineBindGroup {
-            url: Some(texture.key().clone()),
+            url: Some(texture.asset_u64()),
             buffer: param.clone(),
             sampler: Some(sampler.key().clone()),
         };
@@ -121,7 +121,7 @@ impl SpineBindGroup {
                         },
                         wgpu::BindGroupEntry {
                             binding: 1,
-                            resource: wgpu::BindingResource::TextureView(&texture.texture_view),
+                            resource: wgpu::BindingResource::TextureView(texture.view()),
                         },
                         wgpu::BindGroupEntry {
                             binding: 2,
@@ -139,7 +139,7 @@ impl SpineBindGroup {
     pub fn two_colored_textured(
         param: Handle<SpineBindBuffer>,
         device: &RenderDevice,
-        texture: Handle<TextureRes>,
+        texture: ETextureViewUsage,
         sampler: Handle<SamplerRes>,
         asset_mgr: &Share<AssetMgr<RenderRes<BindGroup>>>,
         bind_group_layouts: &SingleSpineBindGroupLayout,

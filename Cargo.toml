@@ -26,7 +26,7 @@ pi_scene_math = { version = "0.0.3", registry = "yn" }
 
 pi_map = "0.2"
 pi_hash = "0.1"
-pi_assets = "0.13"
+pi_assets = "0.14"
 pi_share = "0.4"
 pi_atom = { version = "0.5", features = ["serde"] }
 pi_hal = {version  ="0.1", registry = "yn"}
