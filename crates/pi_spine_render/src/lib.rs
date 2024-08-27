@@ -18,7 +18,7 @@ use pi_null::Null;
 // use pi_window_renderer::WindowRenderer;
 use pi_hal::{runtime::RENDER_RUNTIME, loader::AsyncLoader};
 use pi_hash::XHashMap;
-use pi_render::{asset::TAssetKeyU64, components::view::target_alloc::{ShareTargetView, TargetDescriptor, TextureDescriptor}, renderer::{draw_obj_list::DrawList, sampler::SamplerRes, texture::{ETextureViewUsage, ImageTexture, ImageTexture2DDesc, ImageTextureView, KeyImageTexture, KeyImageTextureView, TextureViewDesc}}, rhi::{asset::{ImageTextureDesc, TextureRes}, sampler::{EAddressMode, EAnisotropyClamp, EFilterMode, SamplerDesc}}};
+use pi_render::{asset::TAssetKeyU64, components::view::target_alloc::{ShareTargetView, TargetDescriptor, TextureDescriptor}, renderer::{draw_obj_list::DrawList, sampler::SamplerRes, texture::{ETextureViewUsage, ImageTexture, ImageTexture2DDesc, ImageTextureView, KeyImageTexture, KeyImageTextureView, TextureViewDesc}}, rhi::{asset::{ImageTextureDesc, TextureRes}, sampler::{EAddressMode, EAnisotropyClamp, EFilterMode, Sampler, SamplerDesc}}};
 use pi_share::Share;
 use renderer::{RendererAsync, SpineResource};
 use shaders::KeySpineShader;
@@ -310,7 +310,7 @@ pub enum ESpineCommand {
     Reset(KeySpineRenderer),
     RenderSize(KeySpineRenderer, u32, u32),
     Shader(KeySpineRenderer, Option<KeySpineShader>),
-    UseTexture(KeySpineRenderer, Option<ETextureViewUsage>, Option<Handle<SamplerRes>>),
+    UseTexture(KeySpineRenderer, Option<ETextureViewUsage>, Option<SamplerDesc>),
     Texture(KeySpineRenderer, u64, ETextureViewUsage, SamplerDesc, Handle<SamplerRes>),
     Blend(KeySpineRenderer, bool),
     BlendMode(KeySpineRenderer, wgpu::BlendFactor, wgpu::BlendFactor),
@@ -326,6 +326,8 @@ pub fn sys_spine_cmds(
     mut cmds: ResMut<ActionListSpine>,
     mut clearopt: ResMut<PiClearOptions>,
     mut renderers: ResMut<SpineRenderContext>,
+    asset_samplers: Res<ShareAssetMgr<Sampler>>,
+    device: Res<PiRenderDevice>,
     renderopt: Res<PiRenderOptions>,
     mut graphic: ResMut<PiRenderGraph>,
     mut texloader: ResMut<SpineTextureLoad>,
@@ -395,9 +397,24 @@ pub fn sys_spine_cmds(
                     renderer.render.shader(val);
                 }
             },
-            ESpineCommand::UseTexture(id, val, sampler) => {
+            ESpineCommand::UseTexture(id, val, samplerdesc) => {
                 if let Some(renderer) = renderers.list.get_mut(&id) {
                     // log::warn!("Cmd: UseTexture");
+                    let sampler = if let Some(samplerdesc) = samplerdesc {
+                        if let Some(sampler) = asset_samplers.get(&samplerdesc) {
+                            renderer.render_mut().record_sampler(samplerdesc, sampler.clone());
+                            Some(sampler)
+                        } else {
+                            if let Ok(sampler) = asset_samplers.insert(samplerdesc.clone(), SamplerRes::new(&device, &samplerdesc)) {
+                                renderer.render_mut().record_sampler(samplerdesc, sampler.clone());
+                                Some(sampler)
+                            } else {
+                                // log::warn!("sampler Err");
+                                None
+                            }
+                        }
+                    } else { None };
+
                     renderer.render.texture(val, sampler);
                 }
             },
@@ -544,7 +561,7 @@ impl ActionSpine {
         cmds: &mut ActionListSpine,
         id_renderer: KeySpineRenderer,
         value: ETextureViewUsage,
-        sampler: Handle<SamplerRes>,
+        sampler: SamplerDesc,
     ) {
         cmds.push(ESpineCommand::UseTexture(id_renderer, Some(value), Some(sampler)));
     }
