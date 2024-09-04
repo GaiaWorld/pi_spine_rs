@@ -18,7 +18,7 @@ use pi_null::Null;
 // use pi_window_renderer::WindowRenderer;
 use pi_hal::{runtime::RENDER_RUNTIME, loader::AsyncLoader};
 use pi_hash::XHashMap;
-use pi_render::{asset::TAssetKeyU64, components::view::target_alloc::{ShareTargetView, TargetDescriptor, TextureDescriptor}, renderer::{draw_obj_list::DrawList, sampler::SamplerRes, texture::{ETextureViewUsage, ImageTexture, ImageTexture2DDesc, ImageTextureView, KeyImageTexture, KeyImageTextureView, TextureViewDesc}}, rhi::{asset::{ImageTextureDesc, TextureRes}, sampler::{EAddressMode, EAnisotropyClamp, EFilterMode, Sampler, SamplerDesc}}};
+use pi_render::{asset::TAssetKeyU64, components::view::target_alloc::{ShareTargetView, TargetDescriptor, TextureDescriptor}, renderer::{draw_obj_list::DrawList, sampler::SamplerRes, texture::{ETextureViewUsage, ResImageTexture, ImageTexture2DDesc, ImageTextureView, KeyImageTexture, KeyImageTextureView, TextureViewDesc}}, rhi::{asset::{ImageTextureDesc, TextureRes}, sampler::{EAddressMode, EAnisotropyClamp, EFilterMode, Sampler, SamplerDesc}}};
 use pi_share::Share;
 use renderer::{RendererAsync, SpineResource};
 use shaders::KeySpineShader;
@@ -468,7 +468,7 @@ pub fn sys_spine_render_apply(
     device: Res<PiRenderDevice>,
     queue: Res<PiRenderQueue>,
     asset_samplers: Res<ShareAssetMgr<SamplerRes>>,
-    asset_textures: Res<ShareAssetMgr<ImageTexture>>,
+    asset_textures: Res<ShareAssetMgr<ResImageTexture>>,
     asset_textureviews: Res<ShareAssetMgr<ImageTextureView>>,
 ) {
     // log::warn!("Apply: {:?}", renderers.list.len());
@@ -708,7 +708,7 @@ fn sys_spine_texture_load(
     mut loader: ResMut<SpineTextureLoad>,
     device: Res<PiRenderDevice>,
     queue: Res<PiRenderQueue>,
-    image_assets_mgr: Res<ShareAssetMgr<ImageTexture>>,
+    image_assets_mgr: Res<ShareAssetMgr<ResImageTexture>>,
     texture_assets_mgr: Res<ShareAssetMgr<ImageTextureView>>,
 ) {
     let mut list = replace(&mut loader.list, vec![]);
@@ -726,78 +726,79 @@ fn sys_spine_texture_load(
                 let queue = queue.0.clone();
                 let image_assets_mgr = image_assets_mgr.clone();
     
-                RENDER_RUNTIME
-                    .spawn(async move {
-                        let imageresult = AssetMgr::load(&image_assets_mgr, &k.url());
-                        match imageresult {
-                            pi_assets::mgr::LoadResult::Ok(image) => {
-                                let viewkey = k.clone();
-                                RENDER_RUNTIME.spawn(async move {
-                                    // log::error!("Texture Load Task {:?}", (texkey));
-                                    RENDER_RUNTIME.spawn(async move {
-                                        // log::error!("Texture Load Task {:?}", (texkey));
-                                        match ImageTextureView::async_load(image, viewkey, result).await {
-                                            Ok(r) => {
-                                                // log::warn!("Texture Load Success {:?}", (texkey));
-                                                success.push((k, r));
-                                            }
-                                            Err(_e) => {
-                                                // log::error!("Texture Load Fail {:?}", (texkey));
-                                                fail.push((k.clone(), format!("load image fail, {:?}", _e)));
-                                            }
-                                        };
-                                    }).unwrap();
-                                }).unwrap();
-                            },
-                            _ => {
-                                let param = k.url().clone();
-                                let viewkey = k.clone();
-                                RENDER_RUNTIME.spawn(async move {
-                                    let desc = ImageTexture2DDesc { url: param.clone(), device, queue, };
-                                    match param.compressed {
-                                        true => match ImageTexture::async_load_compressed(desc, imageresult).await {
-                                            Ok(image) => {
-                                                RENDER_RUNTIME.spawn(async move {
-                                                    // log::error!("Texture Load Task {:?}", (texkey));
-                                                    match ImageTextureView::async_load(image, viewkey, result).await {
-                                                        Ok(r) => {
-                                                            // log::warn!("Texture Load Success {:?}", (texkey));
-                                                            success.push((k, r));
-                                                        }
-                                                        Err(_e) => {
-                                                            // log::error!("Texture Load Fail {:?}", (texkey));
-                                                            fail.push((k.clone(), format!("load image fail, {:?}", _e)));
-                                                        }
-                                                    };
-                                                }).unwrap();
-                                            },
-                                            Err(e) => fail.push((k.clone(), format!("load image fail, {:?}", e))),
-                                        },
-                                        false => match ImageTexture::async_load_image(desc, imageresult).await {
-                                            Ok(image) => {
-                                                RENDER_RUNTIME.spawn(async move {
-                                                    // log::error!("Texture Load Task {:?}", (texkey));
-                                                    match ImageTextureView::async_load(image, viewkey, result).await {
-                                                        Ok(r) => {
-                                                            // log::warn!("Texture Load Success {:?}", (texkey));
-                                                            success.push((k, r));
-                                                        }
-                                                        Err(_e) => {
-                                                            // log::error!("Texture Load Fail {:?}", (texkey));
-                                                            fail.push((k.clone(), format!("load image fail, {:?}", _e)));
-                                                        }
-                                                    };
-                                                }).unwrap();
-                                            },
-                                            Err(e) => fail.push((k.clone(), format!("load image fail, {:?}", e))),
-                                        },
+                let imageresult = AssetMgr::load(&image_assets_mgr, &k.url());
+                match imageresult {
+                    pi_assets::mgr::LoadResult::Ok(image) => {
+                        let viewkey = k.clone();
+                        RENDER_RUNTIME.spawn(async move {
+                            // log::error!("Texture Load Task {:?}", (texkey));
+                            match ImageTextureView::async_load(image, viewkey, result).await {
+                                Ok(r) => {
+                                    // log::warn!("Texture Load Success {:?}", (texkey));
+                                    success.push((k, r));
+                                }
+                                Err(_e) => {
+                                    // log::error!("Texture Load Fail {:?}", (texkey));
+                                    fail.push((k.clone(), format!("load image fail, {:?}", _e)));
+                                }
+                            };
+                        }).unwrap();
+                    },
+                    LoadResult::Wait(f) => {
+                        RENDER_RUNTIME.spawn(async move {
+                            match f.await {
+                                Ok(result) => {
+                                    match ImageTextureView::async_load(image, viewkey, result).await {
+                                        Ok(r) => {
+                                            // log::warn!("Texture Load Success {:?}", (texkey));
+                                            success.push((k, r));
+                                        }
+                                        Err(_e) => {
+                                            // log::error!("Texture Load Fail {:?}", (texkey));
+                                            fail.push((k.clone(), format!("load image fail, {:?}", _e)));
+                                        }
                                     };
-                                })
-                                .unwrap();
+                                },
+                                Err(_err) => fail.push((k.clone(), format!("load image fail, {:?}", _e))),
                             }
-                        }
-                    })
-                    .unwrap();
+                        }).unwrap();
+                    },
+                    LoadResult::Receiver(recv) => {
+                        let param = k.url().clone();
+                        let viewkey = k.clone();
+                        let haldesc = pi_hal::texture::ImageTextureDesc {
+                            url: param.url.clone(),
+                            srgb: param.srgb,
+                            useage: param.useage,
+                        };
+                        
+                        RENDER_RUNTIME.spawn(async move {
+                            match pi_hal::image_texture_load::load_from_url(&haldesc, &device, &queue).await {
+                                Ok(data) => {
+                                    match recv.receive(param.clone(), Ok(ResImageTexture::new(data))).await {
+                                        Ok(image) => {
+                                            match ImageTextureView::async_load(image, viewkey, result).await {
+                                                Ok(r) => {
+                                                    // log::warn!("Texture Load Success {:?}", (texkey));
+                                                    success.push((k, r));
+                                                }
+                                                Err(_e) => {
+                                                    // log::error!("Texture Load Fail {:?}", (texkey));
+                                                    fail.push((k.clone(), format!("load image fail, {:?}", _e)));
+                                                }
+                                            };
+                                        },
+                                        Err(_) => { fail.push((k.clone(), format!("load image fail, {:?}", _e))); }
+                                    }
+                                },
+                                Err(_) => {
+                                    fail.push((k.clone(), format!("load image fail, {:?}", _e)));
+                                },
+                            };
+                        })
+                        .unwrap();
+                    }
+                }
             }
         }
     });
