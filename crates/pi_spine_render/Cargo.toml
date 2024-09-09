@@ -48,7 +48,7 @@ pi_render = {version  ="0.1", registry = "yn"}
 render_utils = {version  ="0.1", registry = "yn"}
 render_derive = {version  ="0.1", registry = "yn"}
 
-pi_scene_math = { version = "0.0.3", registry = "yn" }
+pi_scene_math = { version = "0.*", registry = "yn" }
 
 pi_world            = { version = "0.1" }
 pi_world_macros     = "0.1"

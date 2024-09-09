@@ -745,9 +745,10 @@ fn sys_spine_texture_load(
                         }).unwrap();
                     },
                     LoadResult::Wait(f) => {
+                        let viewkey = k.clone();
                         RENDER_RUNTIME.spawn(async move {
                             match f.await {
-                                Ok(result) => {
+                                Ok(image) => {
                                     match ImageTextureView::async_load(image, viewkey, result).await {
                                         Ok(r) => {
                                             // log::warn!("Texture Load Success {:?}", (texkey));
@@ -759,7 +760,7 @@ fn sys_spine_texture_load(
                                         }
                                     };
                                 },
-                                Err(_err) => fail.push((k.clone(), format!("load image fail, {:?}", _e))),
+                                Err(_err) => fail.push((k.clone(), format!("load image fail, {:?}", _err))),
                             }
                         }).unwrap();
                     },
@@ -788,11 +789,11 @@ fn sys_spine_texture_load(
                                                 }
                                             };
                                         },
-                                        Err(_) => { fail.push((k.clone(), format!("load image fail, {:?}", _e))); }
+                                        Err(_err) => { fail.push((k.clone(), format!("load image fail, {:?}", _err))); }
                                     }
                                 },
-                                Err(_) => {
-                                    fail.push((k.clone(), format!("load image fail, {:?}", _e)));
+                                Err(_err) => {
+                                    fail.push((k.clone(), format!("load image fail, {:?}", _err)));
                                 },
                             };
                         })
