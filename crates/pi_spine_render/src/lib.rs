@@ -830,10 +830,13 @@ pub struct PluginSpineRenderer;
 impl Plugin for PluginSpineRenderer {
     fn build(&self, app: &mut App) {
         if app.world.get_resource::<ShareAssetMgr<SamplerRes>>().is_none() {
-            app.insert_resource(ShareAssetMgr::<SamplerRes>::new(GarbageEmpty(), false, 32 * 1024, 30 * 1000));
+            app.insert_resource(ShareAssetMgr::<SamplerRes>::new(GarbageEmpty(), false, 32 * 1024, 30 * 10));
+        }
+        if app.world.get_resource::<ShareAssetMgr<ResImageTexture>>().is_none() {
+            app.insert_resource(ShareAssetMgr::<ResImageTexture>::new(GarbageEmpty(), false, 32 * 1024 * 1024, 30 * 10));
         }
         if app.world.get_resource::<ShareAssetMgr<ImageTextureView>>().is_none() {
-            app.insert_resource(ShareAssetMgr::<ImageTextureView>::new(GarbageEmpty(), false, 32 * 1024 * 1024, 30 * 1000));
+            app.insert_resource(ShareAssetMgr::<ImageTextureView>::new(GarbageEmpty(), false, 16 * 1024 * 1024, 30 * 10));
         }
 
         let cfg = if let Some(cfg) = app.world.get_resource::<SpineAssetConfig>() {
