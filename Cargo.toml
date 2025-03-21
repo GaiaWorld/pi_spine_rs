@@ -1,6 +1,6 @@
 [package]
 name = "pi_spine_rs"
-version = "0.0.10"
+version = "0.1.0"
 authors = ["baip0002 <2494156981@qq.com>"]
 edition = "2021"
 description = "Pi Spine Render."
@@ -14,31 +14,31 @@ members = ["crates/*"]
 [dependencies]
 pi_spine_render = { version  ="*", registry = "yn" }
 
-pi_render = {version  ="0.1", registry = "yn"}
-render_derive = {version  ="0.1", registry = "yn"}
+pi_render = {version  ="0.2", registry = "yn"}
+render_derive = {version  ="0.2", registry = "yn"}
 
-pi_bevy_render_plugin = {version  ="0.1", registry = "yn"}
-pi_bevy_asset = {version  ="0.1", registry = "yn"}
-pi_bevy_ecs_extend = {version  ="0.1", registry = "yn"}
-pi_window_renderer = {version  ="0.1", registry = "yn"}
+pi_bevy_render_plugin = {version  ="0.2", registry = "yn"}
+pi_bevy_asset = {version  ="0.2", registry = "yn"}
+pi_bevy_ecs_extend = {version  ="0.2", registry = "yn"}
+pi_window_renderer = {version  ="0.2", registry = "yn"}
 
 pi_scene_math = { version = "0.0.*", registry = "yn" }
 
 pi_map = "0.2"
 pi_hash = "0.1"
-pi_assets = "0.14"
-pi_share = "0.4"
-pi_atom = { version = "0.5", features = ["serde"] }
-pi_hal = {version  ="0.1", registry = "yn"}
-pi-async-rt                = "0.1"
+pi_assets = "0.15"
+pi_share = "0.5"
+pi_atom = { version = "0.6", features = ["serde"] }
+pi_hal = {version  ="0.2", registry = "yn"}
+pi-async-rt                = "0.2"
 
-wgpu = { version = "0.1", registry = "yn", package = "pi_wgpu"}
+wgpu = { version = "0.2", registry = "yn", package = "pi_wgpu"}
 log = "0.4"
 smallvec = "1.9"
 crossbeam = "0.8"
 futures = "0.3"
 
-pi_world            = { version = "0.1" }
+pi_world            = { version = "0.2" }
 
 # [patch."https://github.com/GaiaWorld/pi_scene"]
 # pi_scene = { path = "../pi_scene" }
@@ -57,9 +57,9 @@ pi_bevy_ecs_extend = { path = "../pi_bevy/crates/ecs_extend" }
 pi_window_renderer = { path = "../pi_bevy/crates/window_renderer" }
 
 # pi_render
-pi_render = { path = "../pi_render" }
-render_utils = { path = "../pi_render/crates/render_utils" }
-render_derive = { path = "../pi_render/crates/render_derive" }
+# pi_render = { path = "../pi_render" }
+# render_utils = { path = "../pi_render/crates/render_utils" }
+# render_derive = { path = "../pi_render/crates/render_derive" }
 
 # winit = { path = "../winit" }
 # pi_curves = { path = "../pi_curves" }
@@ -79,11 +79,11 @@ half = "=2.2.1"
 bevy_ecs = "0.11"
 bevy_app = { version="0.11", default-features = false}
 # winit = { path = "../winit" }
-wgpu = { version = "0.1", registry = "yn", package = "pi_wgpu", features = ["use_wgpu"]}
+wgpu = { version = "0.2", registry = "yn", package = "pi_wgpu", features = ["use_wgpu"]}
 wgpu1 = { version = "0.16", package = "wgpu", default-features = false, features = ["glsl"] }
 
-[net]
-git-fetch-with-cli = true
-offline = true
+# [net]
+# git-fetch-with-cli = true
+# offline = true
 
 # [[example]]

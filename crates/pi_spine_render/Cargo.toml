@@ -1,6 +1,6 @@
 [package]
 name = "pi_spine_render"
-version = "0.0.7"
+version = "0.1.0"
 authors = ["baip0002 <2494156981@qq.com>"]
 edition = "2021"
 description = "Pi Spine Render."
@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 keywords = ["scene Render"]
 
 [dependencies]
-wgpu = { version = "0.1", registry = "yn", package = "pi_wgpu"}
+wgpu = { version = "0.2", registry = "yn", package = "pi_wgpu"}
 log = "0.4"
 smallvec = "1.9"
 crossbeam="0.8"
@@ -17,40 +17,40 @@ futures = "0.3"
 
 parry3d = "0.13"
 lazy_static = "1.4"
-pi_spatial = "0.5"
+pi_spatial = "0.6"
 
 approx = "0.5"
 naga = { version = "0.19" }
 bytemuck = { version = "1.4", features = ["derive"] }
 
-pi_slotmap = "0.1"
+pi_slotmap = "0.2"
 pi_map = "0.2"
 pi_hash = "0.1"
-pi_share = "0.4"
-pi_atom = { version="0.5", features = ["serde"] }
-pi_assets = "0.14"
+pi_share = "0.5"
+pi_atom = { version="0.6", features = ["serde"] }
+pi_assets = "0.15"
 pi_futures = "0.1"
-pi-async-rt = "0.1"
-pi_slotmap_tree = "0.3"
-pi_hal = {version  ="0.1", registry = "yn"}
+pi-async-rt = "0.2"
+pi_slotmap_tree = "0.4"
+pi_hal = {version  ="0.2", registry = "yn"}
 pi_null = "0.1"
 
 js-sys = "0.3"
 
 bevy_ecs = "0.11"
 bevy_app = { version="0.11", default-features = false}
-pi_bevy_render_plugin = {version  ="0.1", registry = "yn"}
-pi_bevy_asset = {version  ="0.1", registry = "yn"}
-pi_bevy_ecs_extend = {version  ="0.1", registry = "yn"}
-pi_window_renderer = {version  ="0.1", registry = "yn"}
+pi_bevy_render_plugin = {version  ="0.2", registry = "yn"}
+pi_bevy_asset = {version  ="0.2", registry = "yn"}
+pi_bevy_ecs_extend = {version  ="0.2", registry = "yn"}
+pi_window_renderer = {version  ="0.2", registry = "yn"}
 
-pi_render = {version  ="0.1", registry = "yn"}
-render_utils = {version  ="0.1", registry = "yn"}
-render_derive = {version  ="0.1", registry = "yn"}
+pi_render = {version  ="0.2", registry = "yn"}
+render_utils = {version  ="0.2", registry = "yn"}
+render_derive = {version  ="0.2", registry = "yn"}
 
 pi_scene_math = { version = "0.*", registry = "yn" }
 
-pi_world            = { version = "0.1" }
+pi_world            = { version = "0.2" }
 pi_world_macros     = "0.1"
 
 # [[example]]
