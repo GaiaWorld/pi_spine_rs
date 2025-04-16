@@ -136,7 +136,7 @@ impl RendererAsync {
             // }
 
             let buffer = if let Some(range) = resource.verticeallocator.collect(vbdata, draw.shader.vertices_bytes_per_element(), &mut resource.vballocator, device, queue) {
-                EVerticesBufferUsage::EVBRange(Arc::new(EVertexBufferRange::NotUpdatable(range.0, range.1, range.2)))
+                EVerticesBufferUsage::EVBRange(Share::new(EVertexBufferRange::NotUpdatable(range.0, range.1, range.2)))
             } else {
                 return;
             };
@@ -149,7 +149,7 @@ impl RendererAsync {
                 let ibdata = bytemuck::cast_slice(indices);
 
                 let buffer = if let Some(range) = resource.indicesallocator.collect(ibdata, 2, &mut resource.vballocator, device, queue) {
-                    EVerticesBufferUsage::EVBRange(Arc::new(EVertexBufferRange::NotUpdatable(range.0, range.1, range.2)))
+                    EVerticesBufferUsage::EVBRange(Share::new(EVertexBufferRange::NotUpdatable(range.0, range.1, range.2)))
                 } else {
                     return;
                 };
